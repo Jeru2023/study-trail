@@ -18,7 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
     signupPanel: qs('#signupPanel'),
     showSignupBtn: qs('#showSignup'),
     closeSignupBtn: qs('#closeSignup'),
-    shell
+    shell,
+    parentCta: qs('#parentCta'),
+    studentCta: qs('#studentCta')
   });
 
   // 默认身份为家长，若需要可在此调整

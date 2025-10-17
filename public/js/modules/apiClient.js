@@ -1,15 +1,24 @@
 async function request(path, { method = 'GET', data } = {}) {
-  const response = await fetch(path, {
-    method,
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: 'include'
-  });
+  let response;
 
+  try {
+    response = await fetch(path, {
+      method,
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: 'include'
+    });
+  } catch (error) {
+    throw new Error('无法连接服务器，请稍后重试。');
+  }
+
+  let payload = null;
   const contentType = response.headers.get('content-type');
-  const payload = contentType && contentType.includes('application/json') ? await response.json() : null;
+  if (contentType && contentType.includes('application/json')) {
+    payload = await response.json();
+  }
 
   if (!response.ok) {
     const detail = payload?.message || `请求失败（${response.status}）`;

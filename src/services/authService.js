@@ -25,13 +25,25 @@ export async function createParentAccount({ loginName, email, password }) {
 
   const passwordHash = await hashPassword(password);
 
-  const [result] = await pool.query(
-    `INSERT INTO users (role, login_name, email, password_hash)
-     VALUES ('parent', ?, ?, ?)`,
-    [loginName, email, passwordHash]
-  );
+  try {
+    const [result] = await pool.query(
+      `INSERT INTO users (role, login_name, email, password_hash)
+       VALUES ('parent', ?, ?, ?)`,
+      [loginName, email, passwordHash]
+    );
 
-  return findUserById(result.insertId);
+    return findUserById(result.insertId);
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      if (error.message.includes('uniq_email')) {
+        throw new Error('EMAIL_TAKEN');
+      }
+      if (error.message.includes('uniq_login_name')) {
+        throw new Error('LOGIN_NAME_TAKEN');
+      }
+    }
+    throw error;
+  }
 }
 
 export async function createStudentAccount({ parentId, loginName, password }) {
@@ -47,13 +59,20 @@ export async function createStudentAccount({ parentId, loginName, password }) {
 
   const passwordHash = await hashPassword(password);
 
-  const [result] = await pool.query(
-    `INSERT INTO users (role, login_name, password_hash, parent_id)
-     VALUES ('student', ?, ?, ?)`,
-    [loginName, passwordHash, parentId]
-  );
+  try {
+    const [result] = await pool.query(
+      `INSERT INTO users (role, login_name, password_hash, parent_id)
+       VALUES ('student', ?, ?, ?)`,
+      [loginName, passwordHash, parentId]
+    );
 
-  return findUserById(result.insertId);
+    return findUserById(result.insertId);
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY' && error.message.includes('uniq_login_name')) {
+      throw new Error('LOGIN_NAME_TAKEN');
+    }
+    throw error;
+  }
 }
 
 export async function authenticateUser({ role, loginName, password }) {

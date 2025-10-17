@@ -1,4 +1,4 @@
-import { createStudent, fetchStudents, login, registerParent } from './apiClient.js';
+import { login, registerParent } from './apiClient.js';
 import { setRole, getRole, onRoleChange } from './state.js';
 import { disableForm, qsa, setMessage, toggleHidden } from './dom.js';
 
@@ -73,7 +73,9 @@ function updateUIForRole({
   loginForm,
   signupForm,
   loginMessage,
-  signupMessage
+  signupMessage,
+  parentCta,
+  studentCta
 }) {
   updateShellRole(document.querySelector('.auth-shell'), role);
   qsa('input', loginForm).forEach((input) => {
@@ -89,10 +91,14 @@ function updateUIForRole({
   }
 
   if (role === 'student') {
-    toggleHidden(ctaPanel, true);
+    toggleHidden(ctaPanel, false);
+    toggleHidden(parentCta, true);
+    toggleHidden(studentCta, false);
     toggleHidden(signupPanel, true);
   } else {
     toggleHidden(ctaPanel, false);
+    toggleHidden(parentCta, false);
+    toggleHidden(studentCta, true);
   }
 }
 
@@ -121,7 +127,9 @@ export function setupAuthForms({
   signupPanel,
   showSignupBtn,
   closeSignupBtn,
-  shell
+  shell,
+  parentCta,
+  studentCta
 }) {
   if (loginForm) {
     loginForm.addEventListener('submit', (event) => handleLogin(event, loginForm, loginMessage));
@@ -142,7 +150,9 @@ export function setupAuthForms({
       loginForm,
       signupForm,
       loginMessage,
-      signupMessage
+      signupMessage,
+      parentCta,
+      studentCta
     });
   });
 
@@ -155,6 +165,8 @@ export function setupAuthForms({
     loginForm,
     signupForm,
     loginMessage,
-    signupMessage
+    signupMessage,
+    parentCta,
+    studentCta
   });
 }

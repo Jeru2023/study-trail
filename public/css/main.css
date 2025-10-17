@@ -251,6 +251,16 @@ body {
   line-height: 1.6;
 }
 
+.cta-content--student {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+.cta-content--student p {
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .auth-card__signup {
   position: absolute;
   inset: 0;

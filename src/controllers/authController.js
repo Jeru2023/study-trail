@@ -31,6 +31,9 @@ export async function registerParent(req, res) {
     if (error.message === 'LOGIN_NAME_TAKEN') {
       return res.status(409).json({ message: '登录名已被占用' });
     }
+    if (error.message === 'EMAIL_TAKEN') {
+      return res.status(409).json({ message: '邮箱已被使用' });
+    }
     return res.status(500).json({ message: '注册失败', detail: error.message });
   }
 }
