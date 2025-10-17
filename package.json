@@ -1,0 +1,31 @@
+{
+  "name": "study-trail",
+  "version": "1.0.0",
+  "description": "学迹（Study Trail）督学打卡系统",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:init": "node scripts/init-db.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jeru2023/study-trail.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Jeru2023/study-trail/issues"
+  },
+  "homepage": "https://github.com/Jeru2023/study-trail#readme",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "mysql2": "^3.15.2"
+  }
+}

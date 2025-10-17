@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>学迹 · 登录</title>
+    <link rel="stylesheet" href="/css/main.css" />
+  </head>
+  <body>
+    <div class="identity-overlay" data-open="true" id="identityOverlay">
+      <div class="identity-dialog">
+        <h1>欢迎使用学迹</h1>
+        <p>请选择您的身份以继续</p>
+        <div class="identity-options">
+          <button type="button" data-role="parent" class="identity-button identity-button--parent">
+            我是家长
+          </button>
+          <button type="button" data-role="student" class="identity-button identity-button--student">
+            我是学生
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <main class="auth-shell" data-role="parent">
+      <section class="auth-card">
+        <div class="auth-card__login">
+          <div class="auth-card__heading">
+            <span class="brand">学迹 Study Trail</span>
+            <h2>登录账户</h2>
+            <div class="social-row">
+              <button type="button" aria-label="使用微信登录" disabled>WeChat</button>
+              <button type="button" aria-label="使用钉钉登录" disabled>DingTalk</button>
+              <button type="button" aria-label="使用企业微信登录" disabled>WorkWX</button>
+            </div>
+            <p class="subtext">或使用登录名与密码登录</p>
+          </div>
+
+          <form id="loginForm" class="form">
+            <label class="form-field">
+              <span class="form-label">登录名</span>
+              <input type="text" name="loginName" required autocomplete="username" />
+            </label>
+            <label class="form-field">
+              <span class="form-label">密码</span>
+              <input type="password" name="password" required autocomplete="current-password" />
+            </label>
+            <div class="form-row">
+              <label class="checkbox">
+                <input type="checkbox" name="remember" disabled />
+                <span>记住我</span>
+              </label>
+              <a href="#" class="link link--muted" id="forgotLink">忘记密码？</a>
+            </div>
+            <button type="submit" class="primary-button">登录</button>
+            <p class="form-message" id="loginMessage" role="alert"></p>
+          </form>
+        </div>
+
+        <aside class="auth-card__cta" id="ctaPanel">
+          <div class="cta-content">
+            <h3>你好，家长朋友！</h3>
+            <p>首次使用？立即填写信息，开始守护孩子的学习成长之旅。</p>
+            <button type="button" class="outline-button" id="showSignup">注册新账号</button>
+          </div>
+        </aside>
+
+        <div class="auth-card__signup" id="signupPanel" hidden>
+          <div class="signup-header">
+            <h3>家长注册</h3>
+            <p>完善个人信息后即可添加子女账号。</p>
+          </div>
+          <form id="signupForm" class="form">
+            <label class="form-field">
+              <span class="form-label">登录名</span>
+              <input type="text" name="loginName" required autocomplete="username" />
+            </label>
+            <label class="form-field">
+              <span class="form-label">邮箱</span>
+              <input type="email" name="email" required autocomplete="email" />
+            </label>
+            <label class="form-field">
+              <span class="form-label">密码</span>
+              <input type="password" name="password" required autocomplete="new-password" minlength="6" />
+            </label>
+            <button type="submit" class="primary-button">创建账号</button>
+            <p class="form-message" id="signupMessage" role="alert"></p>
+            <button type="button" class="link-button" id="closeSignup">返回登录</button>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/js/main.js"></script>
+  </body>
+</html>
