@@ -1,4 +1,4 @@
-import { login, registerParent } from './apiClient.js';
+﻿import { login, registerParent } from './apiClient.js';
 import { setRole, getRole, onRoleChange } from './state.js';
 import { disableForm, qsa, setMessage, toggleHidden } from './dom.js';
 
@@ -46,7 +46,6 @@ async function handleLogin(event, loginForm, loginMessage) {
     }
 
     window.location.href = '/student.html';
-    return;
   } catch (error) {
     setMessage(loginMessage, error.message, 'error');
   } finally {

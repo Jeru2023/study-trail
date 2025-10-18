@@ -1,4 +1,4 @@
-import {
+﻿import {
   completeStudentSubtask,
   createStudentSubtask,
   fetchStudentDailyTasks,
@@ -8,14 +8,17 @@ import {
 } from '../modules/apiClient.js';
 import { disableForm, qs, setMessage, toggleHidden } from '../modules/dom.js';
 
-const MAX_PHOTOS = 6;
-const MAX_FILE_SIZE_MB = 10;
+const MAX_PROOFS = 6;
+const MAX_FILE_SIZE_MB = 30;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const state = {
   date: new Date().toISOString().slice(0, 10),
   tasks: [],
   student: null,
-  completingEntry: null
+  completingEntry: null,
+  previewUrls: [],
+  remainingCapacity: MAX_PROOFS
 };
 
 const elements = {
@@ -30,8 +33,10 @@ const elements = {
   completeFormMessage: qs('#completeFormMessage'),
   completeTaskTitle: qs('#completeTaskTitle'),
   completeSubtaskTitle: qs('#completeSubtaskTitle'),
-  completePhotos: qs('#completePhotos'),
-  photoHint: qs('#photoHint'),
+  proofInput: qs('#proofInput'),
+  uploadDropzone: qs('#uploadDropzone'),
+  uploadPreview: qs('#uploadPreview'),
+  proofHint: qs('#proofHint'),
   cancelCompleteBtn: qs('#cancelCompleteBtn'),
   closeCompleteModalBtn: qs('#closeCompleteModal')
 };
@@ -87,7 +92,7 @@ function setLoading(flag) {
 }
 
 function clearContainer() {
-  while (elements.container.firstChild) {
+  while (elements.container?.firstChild) {
     elements.container.removeChild(elements.container.firstChild);
   }
 }
@@ -98,16 +103,35 @@ function createMetaItem(label, value) {
   return span;
 }
 
+function getProofs(entry) {
+  return entry.proofs ?? entry.photos ?? [];
+}
+
+function normalizeEntry(entry) {
+  const proofs = getProofs(entry);
+  entry.proofs = proofs;
+  entry.photos = proofs;
+  return entry;
+}
+
+function normalizeTasks(tasks) {
+  return tasks.map((task) => ({
+    ...task,
+    subtasks: task.subtasks.map((subtask) => normalizeEntry(subtask))
+  }));
+}
+
 function updateSubtaskInState(entry) {
-  const targetTask = state.tasks.find((task) => task.taskId === entry.taskId);
+  const normalized = normalizeEntry(entry);
+  const targetTask = state.tasks.find((task) => task.taskId === normalized.taskId);
   if (!targetTask) {
     return;
   }
-  const index = targetTask.subtasks.findIndex((item) => item.id === entry.id);
+  const index = targetTask.subtasks.findIndex((item) => item.id === normalized.id);
   if (index >= 0) {
-    targetTask.subtasks[index] = entry;
+    targetTask.subtasks[index] = normalized;
   } else {
-    targetTask.subtasks.push(entry);
+    targetTask.subtasks.push(normalized);
   }
   targetTask.subtasks.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
@@ -155,22 +179,48 @@ function renderSubtask(entry) {
     body.appendChild(notesParagraph);
   }
 
-  if (entry.photos?.length) {
-    const photoList = document.createElement('div');
-    photoList.className = 'subtask-photos';
-    entry.photos.forEach((photo, index) => {
+  const proofs = getProofs(entry);
+  if (proofs.length) {
+    const assetList = document.createElement('div');
+    assetList.className = 'subtask-assets';
+
+    proofs.forEach((proof, index) => {
       const link = document.createElement('a');
-      link.href = photo.url;
+      link.href = proof.url;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
-      link.textContent = `照片 ${index + 1}`;
-      photoList.appendChild(link);
+      link.className = 'subtask-assets__item';
+      link.title = proof.originalName || `附件 ${index + 1}`;
+
+      if (proof.type === 'video') {
+        const video = document.createElement('video');
+        video.src = proof.url;
+        video.controls = true;
+        video.muted = true;
+        video.preload = 'metadata';
+        video.playsInline = true;
+        link.appendChild(video);
+
+        const badge = document.createElement('span');
+        badge.className = 'subtask-assets__badge';
+        badge.textContent = '视频';
+        link.appendChild(badge);
+      } else {
+        const image = document.createElement('img');
+        image.src = proof.url;
+        image.alt = proof.originalName || `照片 ${index + 1}`;
+        link.appendChild(image);
+      }
+
+      assetList.appendChild(link);
     });
-    body.appendChild(photoList);
+
+    body.appendChild(assetList);
   }
 
   const actions = document.createElement('div');
   actions.className = 'subtask-actions';
+  const proofCount = proofs.length;
 
   if (entry.status === 'pending') {
     const startBtn = document.createElement('button');
@@ -188,14 +238,14 @@ function renderSubtask(entry) {
     completeBtn.dataset.entryId = entry.id;
     completeBtn.textContent = '完成提交';
     actions.appendChild(completeBtn);
-  } else if (entry.status === 'completed' && !entry.photos?.length) {
-    const addPhotoBtn = document.createElement('button');
-    addPhotoBtn.type = 'button';
-    addPhotoBtn.className = 'ghost-button';
-    addPhotoBtn.dataset.action = 'complete-subtask';
-    addPhotoBtn.dataset.entryId = entry.id;
-    addPhotoBtn.textContent = '补充照片';
-    actions.appendChild(addPhotoBtn);
+  } else if (entry.status === 'completed' && proofCount < MAX_PROOFS) {
+    const addProofBtn = document.createElement('button');
+    addProofBtn.type = 'button';
+    addProofBtn.className = 'ghost-button';
+    addProofBtn.dataset.action = 'complete-subtask';
+    addProofBtn.dataset.entryId = entry.id;
+    addProofBtn.textContent = proofCount ? '补充证明' : '补充照片/视频';
+    actions.appendChild(addProofBtn);
   }
 
   item.appendChild(header);
@@ -303,7 +353,7 @@ function renderTasks() {
 
   state.tasks.forEach((task) => {
     const card = renderTask(task);
-    elements.container.appendChild(card);
+    elements.container?.appendChild(card);
   });
 
   if (!state.tasks.length) {
@@ -315,11 +365,124 @@ function updateDateHeader() {
   elements.dateText.textContent = formatDateLabel(state.date);
 }
 
+function getExistingProofCount(entry) {
+  return getProofs(entry).length;
+}
+
+function updateProofHint(remaining) {
+  if (!elements.proofHint) return;
+  elements.proofHint.textContent =
+    remaining === 0
+      ? '文件数量已达到上限，如需调整请联系家长或老师。'
+      : `还能上传 ${remaining} 个文件，每个不超过 ${MAX_FILE_SIZE_MB}MB。`;
+}
+
+function setProofInputAvailability(remaining) {
+  state.remainingCapacity = remaining;
+  const disabled = remaining === 0;
+  if (elements.proofInput) {
+    elements.proofInput.disabled = disabled;
+    if (disabled) {
+      elements.proofInput.value = '';
+    }
+  }
+  if (elements.uploadDropzone) {
+    elements.uploadDropzone.classList.toggle('upload-dropzone--disabled', disabled);
+    elements.uploadDropzone.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+  }
+  updateProofHint(remaining);
+}
+
+function clearPreview() {
+  state.previewUrls.forEach((url) => URL.revokeObjectURL(url));
+  state.previewUrls = [];
+  if (elements.uploadPreview) {
+    elements.uploadPreview.innerHTML = '';
+  }
+}
+
+function renderSelectedProofs(fileList) {
+  clearPreview();
+  if (!fileList?.length || !elements.uploadPreview) {
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+
+  Array.from(fileList).forEach((file, index) => {
+    const item = document.createElement('div');
+    item.className = 'upload-preview__item';
+
+    const objectUrl = URL.createObjectURL(file);
+    state.previewUrls.push(objectUrl);
+
+    if (file.type.startsWith('video/')) {
+      const video = document.createElement('video');
+      video.src = objectUrl;
+      video.controls = true;
+      video.muted = true;
+      video.preload = 'metadata';
+      video.playsInline = true;
+      item.appendChild(video);
+
+      const badge = document.createElement('span');
+      badge.className = 'upload-preview__badge';
+      badge.textContent = '视频';
+      item.appendChild(badge);
+    } else {
+      const image = document.createElement('img');
+      image.src = objectUrl;
+      image.alt = file.name || `预览 ${index + 1}`;
+      item.appendChild(image);
+    }
+
+    fragment.appendChild(item);
+  });
+
+  elements.uploadPreview.appendChild(fragment);
+}
+
+function handleProofSelection(fileList) {
+  if (!state.completingEntry || !fileList) {
+    return;
+  }
+
+  if (fileList.length > state.remainingCapacity) {
+    setMessage(
+      elements.completeFormMessage,
+      `还能上传 ${state.remainingCapacity} 个文件，请重新选择。`,
+      'error'
+    );
+    if (elements.proofInput) {
+      elements.proofInput.value = '';
+    }
+    clearPreview();
+    return;
+  }
+
+  const oversize = Array.from(fileList).find((file) => file.size > MAX_FILE_SIZE_BYTES);
+  if (oversize) {
+    setMessage(
+      elements.completeFormMessage,
+      `存在超过 ${MAX_FILE_SIZE_MB}MB 的文件，请重新选择。`,
+      'error'
+    );
+    if (elements.proofInput) {
+      elements.proofInput.value = '';
+    }
+    clearPreview();
+    return;
+  }
+
+  setMessage(elements.completeFormMessage, '', '');
+  renderSelectedProofs(fileList);
+}
+
 async function loadTasks() {
   setLoading(true);
   try {
     const { tasks } = await fetchStudentDailyTasks(state.date);
-    state.tasks = tasks;
+    state.tasks = normalizeTasks(tasks);
     renderTasks();
     if (!tasks.length) {
       showPageMessage('今日暂无待完成的任务～', 'info');
@@ -330,8 +493,6 @@ async function loadTasks() {
     state.tasks = [];
     renderTasks();
     showPageMessage(error.message, 'error');
-  } finally {
-    setLoading(false);
   }
 }
 
@@ -383,29 +544,37 @@ async function handleStartSubtask(entryId) {
 
 function openCompleteModal(entry) {
   state.completingEntry = entry;
-  const parentTask = state.tasks.find((task) => task.taskId === entry.taskId);
-  elements.completeTaskTitle.textContent = parentTask ? parentTask.title : '完成打卡';
-  elements.completeSubtaskTitle.textContent = `${entry.title}（开始于 ${formatTime(
-    entry.startedAt
-  )}）`;
-  elements.completeForm.reset();
-  const remaining = Math.max(0, MAX_PHOTOS - (entry.photos?.length || 0));
-  elements.completePhotos.disabled = remaining === 0;
-  elements.photoHint.textContent =
-    remaining === 0
-      ? '照片数量已达上限，如需调整请联系家长或老师。'
-      : `还能上传 ${remaining} 张，每张不超过 ${MAX_FILE_SIZE_MB}MB。`;
+  elements.completeTaskTitle.textContent = entry.title;
+  const startedAt = formatTime(entry.startedAt);
+  elements.completeSubtaskTitle.textContent = `任务开始于 ${startedAt}`;
+
+  if (elements.completeForm) {
+    elements.completeForm.reset();
+  }
+  if (elements.proofInput) {
+    elements.proofInput.value = '';
+  }
+  clearPreview();
   setMessage(elements.completeFormMessage, '', '');
+
+  const remaining = Math.max(0, MAX_PROOFS - getExistingProofCount(entry));
+  setProofInputAvailability(remaining);
+
   elements.completeModal.hidden = false;
 }
 
 function closeCompleteModal() {
   state.completingEntry = null;
-  elements.completeModal.hidden = true;
-  setMessage(elements.completeFormMessage, '', '');
+  setProofInputAvailability(MAX_PROOFS);
+  clearPreview();
+  if (elements.proofInput) {
+    elements.proofInput.value = '';
+  }
   if (elements.completeForm) {
     elements.completeForm.reset();
   }
+  setMessage(elements.completeFormMessage, '', '');
+  elements.completeModal.hidden = true;
 }
 
 async function handleCompleteFormSubmit(event) {
@@ -419,26 +588,28 @@ async function handleCompleteFormSubmit(event) {
     formData.append('notes', notes);
   }
 
-  const files = elements.completePhotos?.files ? Array.from(elements.completePhotos.files) : [];
-  const remaining = Math.max(0, MAX_PHOTOS - (entry.photos?.length || 0));
-
-  if (files.length > remaining) {
+  const files = elements.proofInput?.files ? Array.from(elements.proofInput.files) : [];
+  if (files.length > state.remainingCapacity) {
     setMessage(
       elements.completeFormMessage,
-      `还能上传 ${remaining} 张照片，请调整后再试。`,
+      `还能上传 ${state.remainingCapacity} 个文件，请调整后再试。`,
       'error'
     );
     return;
   }
 
-  const oversize = files.find((file) => file.size > MAX_FILE_SIZE_MB * 1024 * 1024);
+  const oversize = files.find((file) => file.size > MAX_FILE_SIZE_BYTES);
   if (oversize) {
-    setMessage(elements.completeFormMessage, '存在超过大小限制的照片，请重新选择。', 'error');
+    setMessage(
+      elements.completeFormMessage,
+      `存在超过 ${MAX_FILE_SIZE_MB}MB 的文件，请重新选择。`,
+      'error'
+    );
     return;
   }
 
   files.forEach((file) => {
-    formData.append('photos', file);
+    formData.append('proofs', file);
   });
 
   try {
@@ -496,6 +667,58 @@ function registerEvents() {
       closeCompleteModal();
     }
   });
+
+  elements.proofInput?.addEventListener('change', (event) => {
+    handleProofSelection(event.target.files);
+  });
+
+  if (elements.uploadDropzone) {
+    const openPicker = () => {
+      if (!elements.proofInput?.disabled) {
+        elements.proofInput.click();
+      }
+    };
+
+    elements.uploadDropzone.addEventListener('click', openPicker);
+    elements.uploadDropzone.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openPicker();
+      }
+    });
+
+    ['dragenter', 'dragover'].forEach((eventName) => {
+      elements.uploadDropzone.addEventListener(eventName, (event) => {
+        if (elements.proofInput?.disabled) return;
+        event.preventDefault();
+        elements.uploadDropzone.classList.add('upload-dropzone--dragover');
+      });
+    });
+
+    ['dragleave', 'dragend'].forEach((eventName) => {
+      elements.uploadDropzone.addEventListener(eventName, () => {
+        elements.uploadDropzone.classList.remove('upload-dropzone--dragover');
+      });
+    });
+
+    elements.uploadDropzone.addEventListener('drop', (event) => {
+      if (elements.proofInput?.disabled) return;
+      event.preventDefault();
+      elements.uploadDropzone.classList.remove('upload-dropzone--dragover');
+      const droppedFiles = event.dataTransfer?.files;
+      if (!droppedFiles || droppedFiles.length === 0) {
+        return;
+      }
+      const dataTransfer = new DataTransfer();
+      Array.from(droppedFiles).forEach((file) => {
+        dataTransfer.items.add(file);
+      });
+      if (dataTransfer.files.length) {
+        elements.proofInput.files = dataTransfer.files;
+        handleProofSelection(dataTransfer.files);
+      }
+    });
+  }
 }
 
 async function ensureStudentSession() {
@@ -507,9 +730,7 @@ async function ensureStudentSession() {
     }
     state.student = user;
     const displayName = user.name || user.loginName;
-    elements.greeting.textContent = displayName
-      ? `${displayName}，今日打卡`
-      : '今日打卡';
+    elements.greeting.textContent = displayName ? `${displayName}，今日打卡` : '今日打卡';
     return true;
   } catch (error) {
     window.location.href = '/';

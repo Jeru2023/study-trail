@@ -1,3 +1,4 @@
+﻿import { config } from '../config.js';
 import {
   completeSubtaskEntry,
   createSubtaskEntry,
@@ -132,7 +133,9 @@ export async function completeSubtask(req, res) {
       return;
     }
     if (error.message === 'PHOTO_LIMIT_EXCEEDED') {
-      res.status(400).json({ message: '上传照片数量超出限制' });
+      res.status(400).json({
+        message: `上传文件数量超出限制，每次最多 ${config.uploads.maxPhotosPerEntry} 个文件`
+      });
       return;
     }
     res.status(500).json({ message: '提交打卡失败', detail: error.message });

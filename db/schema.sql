@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS student_task_entry_photos (
   entry_id BIGINT UNSIGNED NOT NULL,
   file_path VARCHAR(255) NOT NULL,
   original_name VARCHAR(255) NULL,
+  file_type VARCHAR(100) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_student_task_entry_photos_entry (entry_id),

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
@@ -32,7 +32,9 @@
       <div class="modal__dialog">
         <header class="modal__header">
           <h2 id="completeModalTitle">完成打卡</h2>
-          <button type="button" class="icon-button" id="closeCompleteModal" aria-label="关闭">&times;</button>
+          <button type="button" class="icon-button" id="closeCompleteModal" aria-label="关闭">
+            &times;
+          </button>
         </header>
         <form id="completeForm" class="modal__form">
           <div class="modal__summary">
@@ -40,18 +42,35 @@
             <p id="completeSubtaskTitle"></p>
           </div>
           <label class="form-field">
-            <span class="form-label">完成情况描述</span>
-            <textarea name="notes" rows="4" placeholder="今天完成得怎么样？需要记录的亮点或困难？"></textarea>
+            <span class="form-label">上传完成证明</span>
+            <div class="upload-field" id="uploadField">
+              <input
+                type="file"
+                name="proofs"
+                id="proofInput"
+                accept="image/*,video/*"
+                multiple
+                hidden
+              />
+              <div class="upload-dropzone" id="uploadDropzone" role="button" tabindex="0">
+                <div class="upload-dropzone__icon" aria-hidden="true">📷</div>
+                <div class="upload-dropzone__text">
+                  <strong>点击上传照片或视频</strong>
+                  <span>支持 JPG、PNG、MP4 等格式，最多 6 个文件，单个不超过 30MB</span>
+                </div>
+              </div>
+            </div>
+            <div class="upload-preview" id="uploadPreview"></div>
+            <small class="form-hint" id="proofHint">还能上传 6 个文件，每个不超过 30MB。</small>
           </label>
           <label class="form-field">
-            <span class="form-label">上传照片</span>
-            <input type="file" name="photos" id="completePhotos" accept="image/*" multiple />
-            <small class="form-hint" id="photoHint">最多可上传 6 张，每张不超过 10MB。</small>
+            <span class="form-label">描述完成情况</span>
+            <textarea name="notes" rows="4" placeholder="我完成了……今天的感受是……"></textarea>
           </label>
           <p class="form-message" id="completeFormMessage"></p>
           <div class="modal__actions">
             <button type="button" class="ghost-button" id="cancelCompleteBtn">取消</button>
-            <button type="submit" class="primary-button">提交完成</button>
+            <button type="submit" class="primary-button">提交打卡</button>
           </div>
         </form>
       </div>

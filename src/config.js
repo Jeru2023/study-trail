@@ -26,6 +26,6 @@ export const config = {
     baseDir: path.resolve(process.cwd(), process.env.UPLOADS_DIR || 'uploads'),
     baseUrl: '/uploads',
     maxPhotosPerEntry: Number(process.env.UPLOADS_MAX_PHOTOS_PER_ENTRY) || 6,
-    maxFileSizeMb: Number(process.env.UPLOADS_MAX_FILE_SIZE_MB) || 10
+    maxFileSizeMb: Number(process.env.UPLOADS_MAX_FILE_SIZE_MB) || 30
   }
 };

@@ -21,9 +21,22 @@ function toPosixRelative(filePath) {
   return filePath.replace(/\\/g, '/');
 }
 
-function buildPhotoUrl(relativePath) {
+function buildProofUrl(relativePath) {
   const safePath = toPosixRelative(relativePath).replace(/^\//, '');
   return `${config.uploads.baseUrl}/${safePath}`;
+}
+
+function detectFileCategory({ file_type: fileType, original_name: originalName = '' }) {
+  if (fileType) {
+    if (fileType.startsWith('video/')) return 'video';
+    if (fileType.startsWith('image/')) return 'image';
+  }
+  const extension = path.extname(originalName).toLowerCase();
+  const videoExtensions = new Set(['.mp4', '.mov', '.m4v', '.avi', '.wmv', '.webm', '.mkv']);
+  if (videoExtensions.has(extension)) {
+    return 'video';
+  }
+  return 'image';
 }
 
 async function ensureAssignment(studentId, taskId) {
@@ -51,7 +64,16 @@ function assertWithinDateRange(entryDate, startDate, endDate) {
   }
 }
 
-function mapEntryRow(row, photos = []) {
+function mapEntryRow(row, files = []) {
+  const sortedFiles = files.sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const proofs = sortedFiles.map((file) => ({
+    id: file.id,
+    originalName: file.original_name,
+    url: buildProofUrl(file.file_path),
+    uploadedAt: file.created_at,
+    type: detectFileCategory(file)
+  }));
+
   return {
     id: row.id,
     parentId: row.parent_id,
@@ -66,20 +88,14 @@ function mapEntryRow(row, photos = []) {
     durationSeconds: row.duration_seconds,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    photos: photos
-      .sort((a, b) => a.created_at.localeCompare(b.created_at))
-      .map((photo) => ({
-        id: photo.id,
-        originalName: photo.original_name,
-        url: buildPhotoUrl(photo.file_path),
-        uploadedAt: photo.created_at
-      }))
+    proofs,
+    photos: proofs
   };
 }
 
 async function fetchEntries(studentId, entryDate, taskIds) {
   if (!taskIds.length) {
-    return { entries: [], photos: [] };
+    return { entries: [], files: [] };
   }
 
   const [entries] = await pool.query(
@@ -94,10 +110,10 @@ async function fetchEntries(studentId, entryDate, taskIds) {
 
   const entryIds = entries.map((entry) => entry.id);
   if (!entryIds.length) {
-    return { entries, photos: [] };
+    return { entries, files: [] };
   }
 
-  const [photos] = await pool.query(
+  const [files] = await pool.query(
     `SELECT *
        FROM student_task_entry_photos
       WHERE entry_id IN (?)
@@ -105,16 +121,16 @@ async function fetchEntries(studentId, entryDate, taskIds) {
     [entryIds]
   );
 
-  return { entries, photos };
+  return { entries, files };
 }
 
-function groupPhotosByEntry(photos) {
+function groupFilesByEntry(files) {
   const map = new Map();
-  photos.forEach((photo) => {
-    if (!map.has(photo.entry_id)) {
-      map.set(photo.entry_id, []);
+  files.forEach((file) => {
+    if (!map.has(file.entry_id)) {
+      map.set(file.entry_id, []);
     }
-    map.get(photo.entry_id).push(photo);
+    map.get(file.entry_id).push(file);
   });
   return map;
 }
@@ -142,10 +158,10 @@ export async function listDailyTasksForStudent(studentId, dateInput) {
   );
 
   const taskIds = assignments.map((assignment) => assignment.task_id);
-  const { entries, photos } = await fetchEntries(studentId, dateString, taskIds);
-  const photoMap = groupPhotosByEntry(photos);
+  const { entries, files } = await fetchEntries(studentId, dateString, taskIds);
+  const fileMap = groupFilesByEntry(files);
   const entryMap = new Map(
-    entries.map((entry) => [entry.id, mapEntryRow(entry, photoMap.get(entry.id) || [])])
+    entries.map((entry) => [entry.id, mapEntryRow(entry, fileMap.get(entry.id) || [])])
   );
 
   const entriesByTask = new Map();
@@ -204,7 +220,7 @@ export async function getEntryById(entryId, studentId) {
     throw new Error('ENTRY_NOT_FOUND');
   }
 
-  const [photos] = await pool.query(
+  const [files] = await pool.query(
     `SELECT *
        FROM student_task_entry_photos
       WHERE entry_id = ?
@@ -212,7 +228,7 @@ export async function getEntryById(entryId, studentId) {
     [row.id]
   );
 
-  return mapEntryRow(row, photos);
+  return mapEntryRow(row, files);
 }
 
 export async function startSubtaskEntry({ entryId, studentId }) {
@@ -236,7 +252,7 @@ export async function startSubtaskEntry({ entryId, studentId }) {
   return getEntryById(entryId, studentId);
 }
 
-export async function countPhotosForEntry(entryId, connection = pool) {
+export async function countProofsForEntry(entryId, connection = pool) {
   const [[{ total } = { total: 0 }]] = await connection.query(
     `SELECT COUNT(*) AS total
        FROM student_task_entry_photos
@@ -264,10 +280,10 @@ export async function completeSubtaskEntry({ entryId, studentId, notes, files })
       throw new Error('ENTRY_NOT_FOUND');
     }
 
-    const existingPhotos = await countPhotosForEntry(entryId, connection);
+    const existingProofs = await countProofsForEntry(entryId, connection);
     const filesToPersist = Array.isArray(files) ? files : [];
 
-    if (existingPhotos + filesToPersist.length > config.uploads.maxPhotosPerEntry) {
+    if (existingProofs + filesToPersist.length > config.uploads.maxPhotosPerEntry) {
       throw new Error('PHOTO_LIMIT_EXCEEDED');
     }
 
@@ -292,16 +308,17 @@ export async function completeSubtaskEntry({ entryId, studentId, notes, files })
 
     if (filesToPersist.length) {
       const values = filesToPersist
-        .map(() => '(?, ?, ?)')
+        .map(() => '(?, ?, ?, ?)')
         .join(', ');
       const params = filesToPersist.flatMap((file) => [
         entryId,
         toPosixRelative(path.relative(config.uploads.baseDir, file.path)),
-        file.originalname || null
+        file.originalname || null,
+        file.mimetype || null
       ]);
 
       await connection.query(
-        `INSERT INTO student_task_entry_photos (entry_id, file_path, original_name)
+        `INSERT INTO student_task_entry_photos (entry_id, file_path, original_name, file_type)
          VALUES ${values}`,
         params
       );

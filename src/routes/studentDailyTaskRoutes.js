@@ -43,7 +43,10 @@ const upload = multer({
     fileSize: config.uploads.maxFileSizeMb * 1024 * 1024
   },
   fileFilter(_req, file, cb) {
-    if (!file.mimetype || !file.mimetype.startsWith('image/')) {
+    if (
+      !file.mimetype ||
+      (!file.mimetype.startsWith('image/') && !file.mimetype.startsWith('video/'))
+    ) {
       cb(Object.assign(new Error('INVALID_FILE_TYPE'), { code: 'INVALID_FILE_TYPE' }));
       return;
     }
@@ -60,15 +63,19 @@ function handleUploadErrors(middleware) {
       }
 
       if (error.code === 'LIMIT_FILE_SIZE') {
-        res.status(400).json({ message: '上传文件过大' });
+        res.status(400).json({
+          message: `上传文件过大，单个文件不超过 ${config.uploads.maxFileSizeMb}MB`
+        });
         return;
       }
       if (error.code === 'LIMIT_FILE_COUNT') {
-        res.status(400).json({ message: '上传照片数量超过限制' });
+        res.status(400).json({
+          message: `上传文件数量超过限制，每次最多 ${config.uploads.maxPhotosPerEntry} 个文件`
+        });
         return;
       }
       if (error.code === 'INVALID_FILE_TYPE') {
-        res.status(400).json({ message: '仅支持上传图片格式' });
+        res.status(400).json({ message: '仅支持上传图片或视频格式' });
         return;
       }
 
@@ -82,7 +89,7 @@ router.post('/daily-tasks/:taskId/subtasks', addSubtask);
 router.patch('/subtasks/:entryId/start', startSubtask);
 router.post(
   '/subtasks/:entryId/complete',
-  handleUploadErrors(upload.array('photos', config.uploads.maxPhotosPerEntry)),
+  handleUploadErrors(upload.array('proofs', config.uploads.maxPhotosPerEntry)),
   completeSubtask
 );
 

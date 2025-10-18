@@ -40,6 +40,16 @@ async function run() {
     }
   }
 
+  try {
+    await pool.query(
+      'ALTER TABLE student_task_entry_photos ADD COLUMN file_type VARCHAR(100) NULL AFTER original_name'
+    );
+  } catch (error) {
+    if (error.code !== 'ER_DUP_FIELDNAME') {
+      throw error;
+    }
+  }
+
   // eslint-disable-next-line no-console
   console.log('数据库结构初始化完成');
 }

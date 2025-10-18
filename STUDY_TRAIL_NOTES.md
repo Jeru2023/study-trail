@@ -48,3 +48,9 @@
 - 后端新增 student_task_entries 与 student_task_entry_photos 两张表，记录学生自建子任务、打卡时间以及上传的图片信息。
 - 新增 API：GET /api/student/daily-tasks 查询每日任务，POST /api/student/daily-tasks/:taskId/subtasks 创建子任务，PATCH /api/student/subtasks/:entryId/start 记录开始时间，POST /api/student/subtasks/:entryId/complete 完成并上传照片。
 - 学生前端支持新增子任务、开始计时、完成提交（含多图上传与完成心得），并展示已完成任务的耗时及照片链接。
+
+### 需求 6：上传预览升级
+- 学生打卡弹窗改为卡片式拖拽区域，支持点击或拖放上传，实时展示缩略图预览，视频文件在预览时默认静音播放。
+- 后端允许同时接收图片与视频，student_task_entry_photos 表新增 file_type 字段存储 MIME，用于区分展示类型。
+- 完成提交后返回 proof 列表（兼容旧 photos 字段），前端任务列表中按网格展示图片和视频缩略图，并支持补充上传。
+- 追加文件上限、大小校验与提示，提示文案同步更新，避免超过 6 个文件或 10MB 单文件的提交。
