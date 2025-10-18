@@ -7,7 +7,8 @@
 - 每次完成修改后必须提交一次代码。
 - 每个功能需求都要记录在 Markdown 文档中，并在实现对应功能时更新。
 - 所有用户提出的新需求都要在本文件中同步更新。
-- 启动 Node.js 服务时使用 `Start-Process ... node.exe src/server.js -WindowStyle Hidden` 方式后台运行，避免命令行阻塞后续操作。
+- 启动 Node.js 服务时使用 Start-Process ... node.exe src/server.js -WindowStyle Hidden 方式后台运行，避免命令行阻塞。
+- JavaScript/HTML 文件必须以 UTF-8（无 BOM）保存，使用 VS Code 等工具确认编码；脚本写文件时显式传入 'utf8'，避免中文乱码。
 
 ## 功能需求记录
 

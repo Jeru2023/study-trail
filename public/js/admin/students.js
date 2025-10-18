@@ -1,10 +1,10 @@
 ﻿import { qsa } from '../modules/dom.js';
 
 const TEXT = {
-  emptyTitle: '杩樻病鏈夊鐢熻处鍙?,
-  emptySubtitle: '鐐瑰嚮鍙充笂瑙掆€滄坊鍔犲鐢熲€濆垱寤虹涓€涓瓙濂宠处鍙枫€?,
-  edit: '缂栬緫',
-  remove: '鍒犻櫎'
+  emptyTitle: '\u8FD8\u6CA1\u6709\u5B66\u751F\u8D26\u53F7',
+  emptySubtitle: '\u70B9\u51FB\u53F3\u4E0A\u89D2\u201C\u6DFB\u52A0\u5B66\u751F\u201D\u521B\u5EFA\u7B2C\u4E00\u4E2A\u5B50\u5973\u8D26\u53F7\u3002',
+  edit: '\u7F16\u8F91',
+  remove: '\u5220\u9664'
 };
 
 function escapeHtml(value) {
@@ -19,7 +19,7 @@ function escapeHtml(value) {
 }
 
 function formatDate(value) {
-  if (!value) return '鈥?;
+  if (!value) return '\u2014';
   let normalized = value;
   if (typeof value === 'string' && value.includes(' ')) {
     normalized = value.replace(' ', 'T');
@@ -55,7 +55,7 @@ export function renderStudentList(container, students, { onEdit, onDelete }) {
           <td>
             <div class="student-name">
               <strong>${escapeHtml(student.name || student.loginName)}</strong>
-              <span class="student-login">鐧诲綍鍚嶏細${escapeHtml(student.loginName)}</span>
+              <span class="student-login">\u767B\u5F55\u540D\uFF1A${escapeHtml(student.loginName)}</span>
             </div>
           </td>
           <td>${escapeHtml(formatDate(student.createdAt))}</td>
@@ -74,9 +74,9 @@ export function renderStudentList(container, students, { onEdit, onDelete }) {
     <table class="table">
       <thead>
         <tr>
-          <th>瀛︾敓</th>
-          <th>鍒涘缓鏃堕棿</th>
-          <th>鎿嶄綔</th>
+          <th>\u5B66\u751F</th>
+          <th>\u521B\u5EFA\u65F6\u95F4</th>
+          <th>\u64CD\u4F5C</th>
         </tr>
       </thead>
       <tbody>
@@ -115,4 +115,3 @@ export function readStudentForm(form) {
 export function resetStudentForm(form) {
   form.reset();
 }
-

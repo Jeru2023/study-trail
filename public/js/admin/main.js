@@ -1,4 +1,4 @@
-﻿import {
+import {
   getCurrentUser,
   fetchTasks,
   createTask,
@@ -22,8 +22,7 @@ import {
   setEditingTaskId,
   setStudents,
   setTasks,
-  setUser,
-  getUser
+  setUser
 } from './state.js';
 import { populateTaskForm, readTaskForm, renderTaskList, resetTaskForm } from './tasks.js';
 import { populateStudentForm, readStudentForm, renderStudentList, resetStudentForm } from './students.js';
@@ -57,6 +56,8 @@ const TEXT = {
 const elements = {
   views: Array.from(document.querySelectorAll('.view')),
   navContainer: qs('.sidebar__nav'),
+  navTasks: qs('#navTasks'),
+  navStudents: qs('#navStudents'),
   addTaskBtn: qs('#addTaskBtn'),
   addStudentBtn: qs('#addStudentBtn'),
   logoutButton: qs('#logoutButton'),
@@ -90,16 +91,16 @@ const elements = {
   }
 };
 
-function navButtons() {
+function getNavButtons() {
   return elements.navContainer ? qsa('[data-view]', elements.navContainer) : [];
 }
 
 function highlightNav(view) {
-  navButtons().forEach((btn) => {
-    if (btn.dataset.view === view) {
-      btn.classList.add('nav-item--active');
+  getNavButtons().forEach((button) => {
+    if (button.dataset.view === view) {
+      button.classList.add('nav-item--active');
     } else {
-      btn.classList.remove('nav-item--active');
+      button.classList.remove('nav-item--active');
     }
   });
 }
@@ -115,24 +116,28 @@ function showView(view) {
 
 function updateUserDisplay(user) {
   if (!user) return;
-  const display = user.name || user.loginName || 'Parent';
-  const initial = display.charAt(0).toUpperCase();
-  elements.avatar.sidebar.textContent = initial;
-  elements.avatar.topbar.textContent = initial;
-  elements.name.sidebar.textContent = display;
-  elements.name.topbar.textContent = display;
+  const displayName = user.name || user.loginName || 'Parent';
+  const initial = displayName.charAt(0).toUpperCase();
+
+  if (elements.avatar.sidebar) elements.avatar.sidebar.textContent = initial;
+  if (elements.avatar.topbar) elements.avatar.topbar.textContent = initial;
+  if (elements.name.sidebar) elements.name.sidebar.textContent = displayName;
+  if (elements.name.topbar) elements.name.topbar.textContent = displayName;
 }
 
 // ----- Task helpers -----
 function setTaskModalMode(mode) {
+  if (!elements.task.modal) return;
   elements.task.modal.dataset.mode = mode;
-  elements.task.title.textContent =
-    mode === 'edit' ? TEXT.task.modalEditTitle : TEXT.task.modalCreateTitle;
+  if (elements.task.title) {
+    elements.task.title.textContent =
+      mode === 'edit' ? TEXT.task.modalEditTitle : TEXT.task.modalCreateTitle;
+  }
 }
 
 function openTaskModal(mode, task = null) {
   setTaskModalMode(mode);
-  setMessage(elements.task.formMessage, '', '');
+  if (elements.task.formMessage) setMessage(elements.task.formMessage, '', '');
   if (mode === 'edit' && task) {
     populateTaskForm(elements.task.form, task);
     setEditingTaskId(task.id);
@@ -140,19 +145,21 @@ function openTaskModal(mode, task = null) {
     resetTaskForm(elements.task.form);
     setEditingTaskId(null);
   }
-  elements.task.modal.hidden = false;
+  if (elements.task.modal) elements.task.modal.hidden = false;
 }
 
 function closeTaskModal() {
-  elements.task.modal.hidden = true;
+  if (elements.task.modal) elements.task.modal.hidden = true;
   resetTaskForm(elements.task.form);
   setEditingTaskId(null);
-  setMessage(elements.task.formMessage, '', '');
+  if (elements.task.formMessage) setMessage(elements.task.formMessage, '', '');
 }
 
 async function loadTasks() {
   try {
-    elements.task.list.innerHTML = `<p class="loading">${TEXT.task.loading}</p>`;
+    if (elements.task.list) {
+      elements.task.list.innerHTML = `<p class="loading">${TEXT.task.loading}</p>`;
+    }
     const { tasks } = await fetchTasks();
     setTasks(tasks ?? []);
     renderTaskList(elements.task.list, getTasks(), {
@@ -160,7 +167,7 @@ async function loadTasks() {
       onDelete: handleDeleteTask
     });
   } catch (error) {
-    elements.task.list.innerHTML = '';
+    if (elements.task.list) elements.task.list.innerHTML = '';
     setMessage(elements.task.message, error.message, 'error');
   }
 }
@@ -174,8 +181,8 @@ function handleEditTask(taskId) {
 async function handleDeleteTask(taskId) {
   const task = getTasks().find((item) => item.id === taskId);
   if (!task) return;
-  const answer = window.confirm(TEXT.task.confirmDelete(task.title));
-  if (!answer) return;
+  const confirmed = window.confirm(TEXT.task.confirmDelete(task.title));
+  if (!confirmed) return;
   try {
     await removeTask(taskId);
     setMessage(elements.task.message, TEXT.task.deleteSuccess, 'success');
@@ -192,6 +199,7 @@ async function submitTask(event) {
     setMessage(elements.task.formMessage, TEXT.task.titleRequired, 'error');
     return;
   }
+
   const editingId = getEditingTaskId();
   try {
     disableForm(elements.task.form, true);
@@ -214,14 +222,17 @@ async function submitTask(event) {
 
 // ----- Student helpers -----
 function setStudentModalMode(mode) {
+  if (!elements.student.modal) return;
   elements.student.modal.dataset.mode = mode;
-  elements.student.title.textContent =
-    mode === 'edit' ? TEXT.student.modalEditTitle : TEXT.student.modalCreateTitle;
+  if (elements.student.title) {
+    elements.student.title.textContent =
+      mode === 'edit' ? TEXT.student.modalEditTitle : TEXT.student.modalCreateTitle;
+  }
 }
 
 function openStudentModal(mode, student = null) {
   setStudentModalMode(mode);
-  setMessage(elements.student.formMessage, '', '');
+  if (elements.student.formMessage) setMessage(elements.student.formMessage, '', '');
   if (mode === 'edit' && student) {
     populateStudentForm(elements.student.form, student);
     setEditingStudentId(student.id);
@@ -229,19 +240,21 @@ function openStudentModal(mode, student = null) {
     resetStudentForm(elements.student.form);
     setEditingStudentId(null);
   }
-  elements.student.modal.hidden = false;
+  if (elements.student.modal) elements.student.modal.hidden = false;
 }
 
 function closeStudentModal() {
-  elements.student.modal.hidden = true;
+  if (elements.student.modal) elements.student.modal.hidden = true;
   resetStudentForm(elements.student.form);
   setEditingStudentId(null);
-  setMessage(elements.student.formMessage, '', '');
+  if (elements.student.formMessage) setMessage(elements.student.formMessage, '', '');
 }
 
 async function loadStudents() {
   try {
-    elements.student.list.innerHTML = `<p class="loading">${TEXT.student.loading}</p>`;
+    if (elements.student.list) {
+      elements.student.list.innerHTML = `<p class="loading">${TEXT.student.loading}</p>`;
+    }
     const { students } = await fetchStudents();
     setStudents(students ?? []);
     renderStudentList(elements.student.list, getStudents(), {
@@ -249,7 +262,7 @@ async function loadStudents() {
       onDelete: handleDeleteStudent
     });
   } catch (error) {
-    elements.student.list.innerHTML = '';
+    if (elements.student.list) elements.student.list.innerHTML = '';
     setMessage(elements.student.message, error.message, 'error');
   }
 }
@@ -264,8 +277,8 @@ async function handleDeleteStudent(studentId) {
   const student = getStudents().find((item) => item.id === studentId);
   if (!student) return;
   const name = student.name || student.loginName;
-  const answer = window.confirm(TEXT.student.confirmDelete(name));
-  if (!answer) return;
+  const confirmed = window.confirm(TEXT.student.confirmDelete(name));
+  if (!confirmed) return;
   try {
     await removeStudent(studentId);
     setMessage(elements.student.message, TEXT.student.deleteSuccess, 'success');
@@ -277,28 +290,28 @@ async function handleDeleteStudent(studentId) {
 
 async function submitStudent(event) {
   event.preventDefault();
-  const formValues = readStudentForm(elements.student.form);
-  if (!formValues.name || !formValues.loginName) {
+  const values = readStudentForm(elements.student.form);
+  if (!values.name || !values.loginName) {
     setMessage(elements.student.formMessage, TEXT.student.fieldRequired, 'error');
     return;
   }
 
   const editingId = getEditingStudentId();
   const payload = {
-    name: formValues.name,
-    loginName: formValues.loginName
+    name: values.name,
+    loginName: values.loginName
   };
 
   if (editingId) {
-    if (formValues.password) {
-      payload.password = formValues.password;
+    if (values.password) {
+      payload.password = values.password;
     }
   } else {
-    if (!formValues.password) {
+    if (!values.password) {
       setMessage(elements.student.formMessage, TEXT.student.passwordRequired, 'error');
       return;
     }
-    payload.password = formValues.password;
+    payload.password = values.password;
   }
 
   try {
@@ -320,45 +333,74 @@ async function submitStudent(event) {
   }
 }
 
-// ----- Event wiring -----
-function setupNavigation() {
-  if (!elements.navContainer) return;
-  elements.navContainer.addEventListener('click', async (event) => {
-    const target = event.target.closest('[data-view]');
-    if (!target || target.disabled) return;
-    const view = target.dataset.view;
-    if (!view || view === getActiveView()) return;
+async function changeView(view) {
+  if (!view || view === getActiveView()) return;
+  // eslint-disable-next-line no-console
+  console.debug('[admin] changeView ->', view);
+  showView(view);
+  if (view === 'students') {
+    await loadStudents();
+  } else if (view === 'tasks') {
+    await loadTasks();
+  }
+}
 
-    showView(view);
-    if (view === 'students') {
-      await loadStudents();
-    } else if (view === 'tasks') {
-      await loadTasks();
-    }
-  });
+function setupNavigation() {
+  if (elements.navContainer) {
+    elements.navContainer.addEventListener('click', (event) => {
+      const target = event.target.closest('[data-view]');
+      if (!target || target.disabled) return;
+      // eslint-disable-next-line no-console
+      console.debug('[admin] nav click', target.dataset.view);
+      changeView(target.dataset.view);
+    });
+  }
+
+  if (elements.navTasks) {
+    elements.navTasks.addEventListener('click', () => changeView('tasks'));
+  }
+  if (elements.navStudents) {
+    elements.navStudents.addEventListener('click', () => changeView('students'));
+  }
 }
 
 function setupModalInteractions() {
-  elements.task.cancelBtn?.addEventListener('click', closeTaskModal);
-  elements.task.closeBtn?.addEventListener('click', closeTaskModal);
-  elements.task.modal?.addEventListener('click', (event) => {
-    if (event.target.dataset.action === 'close-modal') {
-      closeTaskModal();
-    }
-  });
+  if (elements.task.cancelBtn) {
+    elements.task.cancelBtn.addEventListener('click', closeTaskModal);
+  }
+  if (elements.task.closeBtn) {
+    elements.task.closeBtn.addEventListener('click', closeTaskModal);
+  }
+  if (elements.task.modal) {
+    elements.task.modal.addEventListener('click', (event) => {
+      if (event.target.dataset.action === 'close-modal') {
+        closeTaskModal();
+      }
+    });
+  }
 
-  elements.student.cancelBtn?.addEventListener('click', closeStudentModal);
-  elements.student.closeBtn?.addEventListener('click', closeStudentModal);
-  elements.student.modal?.addEventListener('click', (event) => {
-    if (event.target.dataset.action === 'close-modal') {
-      closeStudentModal();
-    }
-  });
+  if (elements.student.cancelBtn) {
+    elements.student.cancelBtn.addEventListener('click', closeStudentModal);
+  }
+  if (elements.student.closeBtn) {
+    elements.student.closeBtn.addEventListener('click', closeStudentModal);
+  }
+  if (elements.student.modal) {
+    elements.student.modal.addEventListener('click', (event) => {
+      if (event.target.dataset.action === 'close-modal') {
+        closeStudentModal();
+      }
+    });
+  }
 
   window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
-      if (!elements.task.modal.hidden) closeTaskModal();
-      if (!elements.student.modal.hidden) closeStudentModal();
+      if (elements.task.modal && !elements.task.modal.hidden) {
+        closeTaskModal();
+      }
+      if (elements.student.modal && !elements.student.modal.hidden) {
+        closeStudentModal();
+      }
     }
   });
 }
@@ -378,6 +420,7 @@ async function bootstrap() {
       window.location.href = '/';
       return;
     }
+
     setUser(user);
     updateUserDisplay(user);
 
@@ -394,11 +437,21 @@ async function bootstrap() {
 }
 
 function main() {
-  elements.addTaskBtn?.addEventListener('click', () => openTaskModal('create'));
-  elements.addStudentBtn?.addEventListener('click', () => openStudentModal('create'));
-  elements.task.form?.addEventListener('submit', submitTask);
-  elements.student.form?.addEventListener('submit', submitStudent);
-  elements.logoutButton?.addEventListener('click', handleLogout);
+  if (elements.addTaskBtn) {
+    elements.addTaskBtn.addEventListener('click', () => openTaskModal('create'));
+  }
+  if (elements.addStudentBtn) {
+    elements.addStudentBtn.addEventListener('click', () => openStudentModal('create'));
+  }
+  if (elements.task.form) {
+    elements.task.form.addEventListener('submit', submitTask);
+  }
+  if (elements.student.form) {
+    elements.student.form.addEventListener('submit', submitStudent);
+  }
+  if (elements.logoutButton) {
+    elements.logoutButton.addEventListener('click', handleLogout);
+  }
 
   setupModalInteractions();
   setupNavigation();
