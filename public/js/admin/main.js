@@ -1,4 +1,4 @@
-import {
+﻿import {
   getCurrentUser,
   fetchTasks,
   createTask,
@@ -10,20 +10,20 @@ import {
   removeStudent,
   logout
 } from '../modules/apiClient.js';
-import { qs, setMessage, disableForm, toggleHidden } from '../modules/dom.js';
+import { qs, qsa, setMessage, disableForm, toggleHidden } from '../modules/dom.js';
 import {
   getActiveView,
   getEditingStudentId,
   getEditingTaskId,
   getStudents,
   getTasks,
-  getUser,
   setActiveView,
   setEditingStudentId,
   setEditingTaskId,
   setStudents,
   setTasks,
-  setUser
+  setUser,
+  getUser
 } from './state.js';
 import { populateTaskForm, readTaskForm, renderTaskList, resetTaskForm } from './tasks.js';
 import { populateStudentForm, readStudentForm, renderStudentList, resetStudentForm } from './students.js';
@@ -54,54 +54,48 @@ const TEXT = {
   }
 };
 
-const views = Array.from(document.querySelectorAll('.view'));
-const pageMessageTasks = qs('#taskMessage');
-const pageMessageStudents = qs('#studentMessage');
-const taskListContainer = qs('#taskList');
-const studentListContainer = qs('#studentList');
+const elements = {
+  views: Array.from(document.querySelectorAll('.view')),
+  navContainer: qs('.sidebar__nav'),
+  addTaskBtn: qs('#addTaskBtn'),
+  addStudentBtn: qs('#addStudentBtn'),
+  logoutButton: qs('#logoutButton'),
+  task: {
+    message: qs('#taskMessage'),
+    list: qs('#taskList'),
+    modal: qs('#taskModal'),
+    title: qs('#taskModalTitle'),
+    form: qs('#taskForm'),
+    formMessage: qs('#taskFormMessage'),
+    cancelBtn: qs('#cancelTaskBtn'),
+    closeBtn: qs('#closeTaskModal')
+  },
+  student: {
+    message: qs('#studentMessage'),
+    list: qs('#studentList'),
+    modal: qs('#studentModal'),
+    title: qs('#studentModalTitle'),
+    form: qs('#studentForm'),
+    formMessage: qs('#studentFormMessage'),
+    cancelBtn: qs('#cancelStudentBtn'),
+    closeBtn: qs('#closeStudentModal')
+  },
+  avatar: {
+    sidebar: qs('#sidebarAvatar'),
+    topbar: qs('#topbarAvatar')
+  },
+  name: {
+    sidebar: qs('#sidebarUserName'),
+    topbar: qs('#topbarUserName')
+  }
+};
 
-const addTaskBtn = qs('#addTaskBtn');
-const addStudentBtn = qs('#addStudentBtn');
-const logoutButton = qs('#logoutButton');
-const navTasks = qs('#navTasks');
-const navStudents = qs('#navStudents');
-
-// Task modal elements
-const taskModal = qs('#taskModal');
-const taskModalTitle = qs('#taskModalTitle');
-const taskForm = qs('#taskForm');
-const taskFormMessage = qs('#taskFormMessage');
-const cancelTaskBtn = qs('#cancelTaskBtn');
-const closeTaskModalBtn = qs('#closeTaskModal');
-
-// Student modal elements
-const studentModal = qs('#studentModal');
-const studentModalTitle = qs('#studentModalTitle');
-const studentForm = qs('#studentForm');
-const studentFormMessage = qs('#studentFormMessage');
-const cancelStudentBtn = qs('#cancelStudentBtn');
-const closeStudentModalBtn = qs('#closeStudentModal');
-
-// User display
-const sidebarAvatar = qs('#sidebarAvatar');
-const topbarAvatar = qs('#topbarAvatar');
-const sidebarUserName = qs('#sidebarUserName');
-const topbarUserName = qs('#topbarUserName');
-
-function updateUserDisplay(user) {
-  if (!user) return;
-  const display = user.name || user.loginName || 'Parent';
-  const initial = display.charAt(0).toUpperCase();
-  sidebarAvatar.textContent = initial;
-  topbarAvatar.textContent = initial;
-  sidebarUserName.textContent = display;
-  topbarUserName.textContent = display;
+function navButtons() {
+  return elements.navContainer ? qsa('[data-view]', elements.navContainer) : [];
 }
 
-// ---------- View management ----------
 function highlightNav(view) {
-  [navTasks, navStudents].forEach((btn) => {
-    if (!btn) return;
+  navButtons().forEach((btn) => {
     if (btn.dataset.view === view) {
       btn.classList.add('nav-item--active');
     } else {
@@ -113,52 +107,61 @@ function highlightNav(view) {
 function showView(view) {
   setActiveView(view);
   highlightNav(view);
-
-  views.forEach((section) => {
-    const match = section.dataset.view === view;
-    toggleHidden(section, !match);
+  elements.views.forEach((section) => {
+    const visible = section.dataset.view === view;
+    toggleHidden(section, !visible);
   });
 }
 
-// ---------- Task handling ----------
+function updateUserDisplay(user) {
+  if (!user) return;
+  const display = user.name || user.loginName || 'Parent';
+  const initial = display.charAt(0).toUpperCase();
+  elements.avatar.sidebar.textContent = initial;
+  elements.avatar.topbar.textContent = initial;
+  elements.name.sidebar.textContent = display;
+  elements.name.topbar.textContent = display;
+}
+
+// ----- Task helpers -----
 function setTaskModalMode(mode) {
-  taskModal.dataset.mode = mode;
-  taskModalTitle.textContent =
+  elements.task.modal.dataset.mode = mode;
+  elements.task.title.textContent =
     mode === 'edit' ? TEXT.task.modalEditTitle : TEXT.task.modalCreateTitle;
 }
 
 function openTaskModal(mode, task = null) {
   setTaskModalMode(mode);
-  setMessage(taskFormMessage, '', '');
+  setMessage(elements.task.formMessage, '', '');
   if (mode === 'edit' && task) {
-    populateTaskForm(taskForm, task);
+    populateTaskForm(elements.task.form, task);
     setEditingTaskId(task.id);
   } else {
-    resetTaskForm(taskForm);
+    resetTaskForm(elements.task.form);
     setEditingTaskId(null);
   }
-  taskModal.hidden = false;
+  elements.task.modal.hidden = false;
 }
 
 function closeTaskModal() {
-  taskModal.hidden = true;
-  resetTaskForm(taskForm);
+  elements.task.modal.hidden = true;
+  resetTaskForm(elements.task.form);
   setEditingTaskId(null);
-  setMessage(taskFormMessage, '', '');
+  setMessage(elements.task.formMessage, '', '');
 }
 
 async function loadTasks() {
   try {
-    taskListContainer.innerHTML = `<p class="loading">${TEXT.task.loading}</p>`;
+    elements.task.list.innerHTML = `<p class="loading">${TEXT.task.loading}</p>`;
     const { tasks } = await fetchTasks();
     setTasks(tasks ?? []);
-    renderTaskList(taskListContainer, getTasks(), {
+    renderTaskList(elements.task.list, getTasks(), {
       onEdit: handleEditTask,
       onDelete: handleDeleteTask
     });
   } catch (error) {
-    taskListContainer.innerHTML = '';
-    setMessage(pageMessageTasks, error.message, 'error');
+    elements.task.list.innerHTML = '';
+    setMessage(elements.task.message, error.message, 'error');
   }
 }
 
@@ -173,86 +176,81 @@ async function handleDeleteTask(taskId) {
   if (!task) return;
   const answer = window.confirm(TEXT.task.confirmDelete(task.title));
   if (!answer) return;
-
   try {
     await removeTask(taskId);
-    setMessage(pageMessageTasks, TEXT.task.deleteSuccess, 'success');
+    setMessage(elements.task.message, TEXT.task.deleteSuccess, 'success');
     await loadTasks();
   } catch (error) {
-    setMessage(pageMessageTasks, error.message, 'error');
+    setMessage(elements.task.message, error.message, 'error');
   }
 }
 
-async function handleTaskSubmit(event) {
+async function submitTask(event) {
   event.preventDefault();
-  const payload = readTaskForm(taskForm);
-
+  const payload = readTaskForm(elements.task.form);
   if (!payload.title) {
-    setMessage(taskFormMessage, TEXT.task.titleRequired, 'error');
+    setMessage(elements.task.formMessage, TEXT.task.titleRequired, 'error');
     return;
   }
-
+  const editingId = getEditingTaskId();
   try {
-    disableForm(taskForm, true);
-    setMessage(taskFormMessage, TEXT.task.saveInProgress, 'info');
-    const editingId = getEditingTaskId();
-
+    disableForm(elements.task.form, true);
+    setMessage(elements.task.formMessage, TEXT.task.saveInProgress, 'info');
     if (editingId) {
       await updateTask(editingId, payload);
-      setMessage(pageMessageTasks, TEXT.task.updateSuccess, 'success');
+      setMessage(elements.task.message, TEXT.task.updateSuccess, 'success');
     } else {
       await createTask(payload);
-      setMessage(pageMessageTasks, TEXT.task.createSuccess, 'success');
+      setMessage(elements.task.message, TEXT.task.createSuccess, 'success');
     }
-
     closeTaskModal();
     await loadTasks();
   } catch (error) {
-    setMessage(taskFormMessage, error.message, 'error');
+    setMessage(elements.task.formMessage, error.message, 'error');
   } finally {
-    disableForm(taskForm, false);
+    disableForm(elements.task.form, false);
   }
 }
 
-// ---------- Student handling ----------
+// ----- Student helpers -----
 function setStudentModalMode(mode) {
-  studentModal.dataset.mode = mode;
-  studentModalTitle.textContent =
+  elements.student.modal.dataset.mode = mode;
+  elements.student.title.textContent =
     mode === 'edit' ? TEXT.student.modalEditTitle : TEXT.student.modalCreateTitle;
 }
 
 function openStudentModal(mode, student = null) {
   setStudentModalMode(mode);
-  setMessage(studentFormMessage, '', '');
+  setMessage(elements.student.formMessage, '', '');
   if (mode === 'edit' && student) {
-    populateStudentForm(studentForm, student);
+    populateStudentForm(elements.student.form, student);
     setEditingStudentId(student.id);
   } else {
-    resetStudentForm(studentForm);
+    resetStudentForm(elements.student.form);
     setEditingStudentId(null);
   }
-  studentModal.hidden = false;
+  elements.student.modal.hidden = false;
 }
 
 function closeStudentModal() {
-  studentModal.hidden = true;
-  resetStudentForm(studentForm);
+  elements.student.modal.hidden = true;
+  resetStudentForm(elements.student.form);
   setEditingStudentId(null);
-  setMessage(studentFormMessage, '', '');
+  setMessage(elements.student.formMessage, '', '');
 }
 
 async function loadStudents() {
   try {
-    studentListContainer.innerHTML = `<p class="loading">${TEXT.student.loading}</p>`;
+    elements.student.list.innerHTML = `<p class="loading">${TEXT.student.loading}</p>`;
     const { students } = await fetchStudents();
     setStudents(students ?? []);
-    renderStudentList(studentListContainer, getStudents(), {
+    renderStudentList(elements.student.list, getStudents(), {
       onEdit: handleEditStudent,
       onDelete: handleDeleteStudent
     });
   } catch (error) {
-    studentListContainer.innerHTML = '';
-    setMessage(pageMessageStudents, error.message, 'error');
+    elements.student.list.innerHTML = '';
+    setMessage(elements.student.message, error.message, 'error');
   }
 }
 
@@ -265,76 +263,93 @@ function handleEditStudent(studentId) {
 async function handleDeleteStudent(studentId) {
   const student = getStudents().find((item) => item.id === studentId);
   if (!student) return;
-  const answer = window.confirm(TEXT.student.confirmDelete(student.name || student.loginName));
+  const name = student.name || student.loginName;
+  const answer = window.confirm(TEXT.student.confirmDelete(name));
   if (!answer) return;
   try {
     await removeStudent(studentId);
-    setMessage(pageMessageStudents, TEXT.student.deleteSuccess, 'success');
+    setMessage(elements.student.message, TEXT.student.deleteSuccess, 'success');
     await loadStudents();
   } catch (error) {
-    setMessage(pageMessageStudents, error.message, 'error');
+    setMessage(elements.student.message, error.message, 'error');
   }
 }
 
-async function handleStudentSubmit(event) {
+async function submitStudent(event) {
   event.preventDefault();
-  const payload = readStudentForm(studentForm);
-  if (!payload.name || !payload.loginName) {
-    setMessage(studentFormMessage, TEXT.student.fieldRequired, 'error');
+  const formValues = readStudentForm(elements.student.form);
+  if (!formValues.name || !formValues.loginName) {
+    setMessage(elements.student.formMessage, TEXT.student.fieldRequired, 'error');
     return;
   }
 
   const editingId = getEditingStudentId();
-  const submitPayload = {
-    name: payload.name,
-    loginName: payload.loginName
+  const payload = {
+    name: formValues.name,
+    loginName: formValues.loginName
   };
 
   if (editingId) {
-    if (payload.password) {
-      submitPayload.password = payload.password;
+    if (formValues.password) {
+      payload.password = formValues.password;
     }
   } else {
-    if (!payload.password) {
-      setMessage(studentFormMessage, TEXT.student.passwordRequired, 'error');
+    if (!formValues.password) {
+      setMessage(elements.student.formMessage, TEXT.student.passwordRequired, 'error');
       return;
     }
-    submitPayload.password = payload.password;
+    payload.password = formValues.password;
   }
 
   try {
-    disableForm(studentForm, true);
-    setMessage(studentFormMessage, TEXT.student.saveInProgress, 'info');
+    disableForm(elements.student.form, true);
+    setMessage(elements.student.formMessage, TEXT.student.saveInProgress, 'info');
     if (editingId) {
-      await updateStudent(editingId, submitPayload);
-      setMessage(pageMessageStudents, TEXT.student.updateSuccess, 'success');
+      await updateStudent(editingId, payload);
+      setMessage(elements.student.message, TEXT.student.updateSuccess, 'success');
     } else {
-      await createStudent(submitPayload);
-      setMessage(pageMessageStudents, TEXT.student.createSuccess, 'success');
+      await createStudent(payload);
+      setMessage(elements.student.message, TEXT.student.createSuccess, 'success');
     }
-
     closeStudentModal();
     await loadStudents();
   } catch (error) {
-    setMessage(studentFormMessage, error.message, 'error');
+    setMessage(elements.student.formMessage, error.message, 'error');
   } finally {
-    disableForm(studentForm, false);
+    disableForm(elements.student.form, false);
   }
 }
 
-// ---------- Event wiring ----------
+// ----- Event wiring -----
+function setupNavigation() {
+  if (!elements.navContainer) return;
+  elements.navContainer.addEventListener('click', async (event) => {
+    const target = event.target.closest('[data-view]');
+    if (!target || target.disabled) return;
+    const view = target.dataset.view;
+    if (!view || view === getActiveView()) return;
+
+    showView(view);
+    if (view === 'students') {
+      await loadStudents();
+    } else if (view === 'tasks') {
+      await loadTasks();
+    }
+  });
+}
+
 function setupModalInteractions() {
-  cancelTaskBtn.addEventListener('click', closeTaskModal);
-  closeTaskModalBtn.addEventListener('click', closeTaskModal);
-  taskModal.addEventListener('click', (event) => {
+  elements.task.cancelBtn?.addEventListener('click', closeTaskModal);
+  elements.task.closeBtn?.addEventListener('click', closeTaskModal);
+  elements.task.modal?.addEventListener('click', (event) => {
     if (event.target.dataset.action === 'close-modal') {
       closeTaskModal();
     }
   });
 
-  cancelStudentBtn.addEventListener('click', closeStudentModal);
-  closeStudentModalBtn.addEventListener('click', closeStudentModal);
-  studentModal.addEventListener('click', (event) => {
+  elements.student.cancelBtn?.addEventListener('click', closeStudentModal);
+  elements.student.closeBtn?.addEventListener('click', closeStudentModal);
+  elements.student.modal?.addEventListener('click', (event) => {
     if (event.target.dataset.action === 'close-modal') {
       closeStudentModal();
     }
@@ -342,25 +357,9 @@ function setupModalInteractions() {
 
   window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
-      if (!taskModal.hidden) {
-        closeTaskModal();
-      }
-      if (!studentModal.hidden) {
-        closeStudentModal();
-      }
+      if (!elements.task.modal.hidden) closeTaskModal();
+      if (!elements.student.modal.hidden) closeStudentModal();
     }
-  });
-}
-
-function setupNavigation() {
-  navTasks.addEventListener('click', async () => {
-    showView('tasks');
-    await loadTasks();
-  });
-
-  navStudents.addEventListener('click', async () => {
-    showView('students');
-    await loadStudents();
   });
 }
 
@@ -395,11 +394,11 @@ async function bootstrap() {
 }
 
 function main() {
-  addTaskBtn.addEventListener('click', () => openTaskModal('create'));
-  addStudentBtn.addEventListener('click', () => openStudentModal('create'));
-  taskForm.addEventListener('submit', handleTaskSubmit);
-  studentForm.addEventListener('submit', handleStudentSubmit);
-  logoutButton.addEventListener('click', handleLogout);
+  elements.addTaskBtn?.addEventListener('click', () => openTaskModal('create'));
+  elements.addStudentBtn?.addEventListener('click', () => openStudentModal('create'));
+  elements.task.form?.addEventListener('submit', submitTask);
+  elements.student.form?.addEventListener('submit', submitStudent);
+  elements.logoutButton?.addEventListener('click', handleLogout);
 
   setupModalInteractions();
   setupNavigation();
