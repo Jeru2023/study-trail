@@ -46,6 +46,14 @@ export function createStudent(payload) {
   return request('/api/auth/students', { method: 'POST', data: payload });
 }
 
+export function updateStudent(studentId, payload) {
+  return request(`/api/auth/students/${studentId}`, { method: 'PUT', data: payload });
+}
+
+export function removeStudent(studentId) {
+  return request(`/api/auth/students/${studentId}`, { method: 'DELETE' });
+}
+
 export function fetchStudents() {
   return request('/api/auth/students');
 }

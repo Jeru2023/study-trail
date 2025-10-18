@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>学迹 · 家长控制台</title>
+    <link rel="stylesheet" href="/css/admin.css" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <aside class="sidebar" data-open="false">
+        <div class="sidebar__brand">
+          <span class="sidebar__logo">学迹</span>
+          <span class="sidebar__subtitle">Study Trail</span>
+        </div>
+        <div class="sidebar__profile">
+          <span class="avatar" id="sidebarAvatar">P</span>
+          <div>
+            <strong id="sidebarUserName">家长</strong>
+            <span class="role-pill">Parent</span>
+          </div>
+        </div>
+        <nav class="sidebar__nav">
+          <button class="nav-item nav-item--active" data-view="tasks" id="navTasks">
+            <span>打卡任务</span>
+          </button>
+          <button class="nav-item" data-view="students" id="navStudents">
+            <span>学生账号</span>
+          </button>
+          <button class="nav-item" disabled>学习数据</button>
+          <button class="nav-item" disabled>成长档案</button>
+          <button class="nav-item" disabled>消息中心</button>
+        </nav>
+        <div class="sidebar__footer">
+          <button class="nav-item" id="logoutButton">退出登录</button>
+        </div>
+      </aside>
+
+      <div class="workspace">
+        <header class="topbar">
+          <div class="topbar__search">
+            <input type="search" placeholder="搜索..." disabled />
+          </div>
+          <div class="topbar__actions">
+            <div class="user-chip">
+              <span class="avatar" id="topbarAvatar">P</span>
+              <div class="user-chip__meta">
+                <span id="topbarUserName">家长</span>
+                <span class="user-chip__role">Parent</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main class="content">
+          <section class="view" data-view="tasks">
+            <div class="page-header">
+              <div>
+                <h1>打卡任务</h1>
+                <p class="page-subtitle">配置家庭打卡任务，帮助孩子养成好习惯。</p>
+              </div>
+              <button type="button" class="primary-button" id="addTaskBtn">新建任务</button>
+            </div>
+            <p class="page-message" id="taskMessage"></p>
+            <section id="taskList" class="card"></section>
+          </section>
+
+          <section class="view" data-view="students" hidden>
+            <div class="page-header">
+              <div>
+                <h1>学生账号</h1>
+                <p class="page-subtitle">管理孩子的登录信息，方便监督每日学习打卡。</p>
+              </div>
+              <button type="button" class="primary-button" id="addStudentBtn">添加学生</button>
+            </div>
+            <p class="page-message" id="studentMessage"></p>
+            <section id="studentList" class="card"></section>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div class="modal" id="taskModal" hidden>
+      <div class="modal__backdrop" data-action="close-modal"></div>
+      <div class="modal__dialog">
+        <header class="modal__header">
+          <h2 id="taskModalTitle">新建任务</h2>
+          <button type="button" class="icon-button" id="closeTaskModal" aria-label="关闭">×</button>
+        </header>
+        <form id="taskForm" class="modal__form">
+          <label class="form-field">
+            <span class="form-label">任务标题</span>
+            <input type="text" name="title" required maxlength="150" placeholder="例如：语文朗读 15 分钟" />
+          </label>
+
+          <label class="form-field">
+            <span class="form-label">任务说明</span>
+            <textarea name="description" rows="4" placeholder="补充任务要求或奖励机制"></textarea>
+          </label>
+
+          <div class="form-grid">
+            <label class="form-field">
+              <span class="form-label">开始日期</span>
+              <input type="date" name="startDate" />
+            </label>
+            <label class="form-field">
+              <span class="form-label">结束日期</span>
+              <input type="date" name="endDate" />
+            </label>
+          </div>
+
+          <p class="form-message" id="taskFormMessage"></p>
+
+          <div class="modal__actions">
+            <button type="button" class="ghost-button" id="cancelTaskBtn">取消</button>
+            <button type="submit" class="primary-button">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal" id="studentModal" hidden>
+      <div class="modal__backdrop" data-action="close-modal"></div>
+      <div class="modal__dialog">
+        <header class="modal__header">
+          <h2 id="studentModalTitle">添加学生</h2>
+          <button type="button" class="icon-button" id="closeStudentModal" aria-label="关闭">×</button>
+        </header>
+        <form id="studentForm" class="modal__form">
+          <label class="form-field">
+            <span class="form-label">学生姓名</span>
+            <input type="text" name="name" required maxlength="80" placeholder="例如：小明" />
+          </label>
+          <label class="form-field">
+            <span class="form-label">登录名</span>
+            <input type="text" name="loginName" required maxlength="64" placeholder="例如：xiaoming01" />
+          </label>
+          <label class="form-field">
+            <span class="form-label">登录密码</span>
+            <input type="password" name="password" minlength="6" placeholder="新密码（编辑时可留空）" />
+          </label>
+
+          <p class="form-message" id="studentFormMessage"></p>
+
+          <div class="modal__actions">
+            <button type="button" class="ghost-button" id="cancelStudentBtn">取消</button>
+            <button type="submit" class="primary-button">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script type="module" src="/js/admin/main.js"></script>
+  </body>
+</html>

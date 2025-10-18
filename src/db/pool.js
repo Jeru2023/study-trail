@@ -1,4 +1,4 @@
-import mysql from 'mysql2/promise';
+﻿import mysql from 'mysql2/promise';
 import { config } from '../config.js';
 
 export const pool = mysql.createPool({
@@ -9,7 +9,8 @@ export const pool = mysql.createPool({
   database: config.db.database,
   waitForConnections: true,
   connectionLimit: config.db.connectionLimit,
-  namedPlaceholders: true
+  namedPlaceholders: true,
+  dateStrings: true
 });
 
 export async function healthCheck() {

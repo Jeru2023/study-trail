@@ -1,9 +1,9 @@
-import { pool } from '../db/pool.js';
+﻿import { pool } from '../db/pool.js';
 import { hashPassword, verifyPassword } from '../utils/password.js';
 
 export async function findUserByLogin(loginName) {
   const [rows] = await pool.query(
-    'SELECT id, role, login_name, email, password_hash, parent_id FROM users WHERE login_name = ? LIMIT 1',
+    'SELECT id, role, login_name, email, display_name, password_hash, parent_id FROM users WHERE login_name = ? LIMIT 1',
     [loginName]
   );
   return rows[0] || null;
@@ -11,7 +11,8 @@ export async function findUserByLogin(loginName) {
 
 export async function findUserById(id) {
   const [rows] = await pool.query(
-    'SELECT id, role, login_name, email, parent_id, created_at FROM users WHERE id = ? LIMIT 1',
+    `SELECT id, role, login_name, email, display_name, parent_id, created_at
+     FROM users WHERE id = ? LIMIT 1`,
     [id]
   );
   return rows[0] || null;
@@ -46,7 +47,7 @@ export async function createParentAccount({ loginName, email, password }) {
   }
 }
 
-export async function createStudentAccount({ parentId, loginName, password }) {
+export async function createStudentAccount({ parentId, loginName, password, displayName }) {
   const parent = await findUserById(parentId);
   if (!parent || parent.role !== 'parent') {
     throw new Error('PARENT_NOT_FOUND');
@@ -61,9 +62,8 @@ export async function createStudentAccount({ parentId, loginName, password }) {
 
   try {
     const [result] = await pool.query(
-      `INSERT INTO users (role, login_name, password_hash, parent_id)
-       VALUES ('student', ?, ?, ?)`,
-      [loginName, passwordHash, parentId]
+      `INSERT INTO users (role, login_name, display_name, password_hash, parent_id)\n       VALUES ('student', ?, ?, ?, ?)`,
+      [loginName, displayName || null, passwordHash, parentId]
     );
 
     return findUserById(result.insertId);
@@ -91,7 +91,7 @@ export async function authenticateUser({ role, loginName, password }) {
 
 export async function listStudentsForParent(parentId) {
   const [rows] = await pool.query(
-    `SELECT id, login_name, created_at
+    `SELECT id, login_name, display_name, parent_id, created_at
      FROM users
      WHERE parent_id = ?
      ORDER BY created_at ASC`,
@@ -99,3 +99,63 @@ export async function listStudentsForParent(parentId) {
   );
   return rows;
 }
+
+export async function updateStudentAccount({ parentId, studentId, loginName, password, displayName }) {
+  const student = await findUserById(studentId);
+  if (!student || student.role !== 'student' || student.parent_id !== parentId) {
+    throw new Error('STUDENT_NOT_FOUND');
+  }
+
+  if (loginName && loginName !== student.login_name) {
+    const existing = await findUserByLogin(loginName);
+    if (existing && existing.id !== studentId) {
+      throw new Error('LOGIN_NAME_TAKEN');
+    }
+  }
+
+  const updates = [];
+  const params = [];
+
+  if (loginName) {
+    updates.push('login_name = ?');
+    params.push(loginName);
+  }
+  if (displayName !== undefined) {
+    updates.push('display_name = ?');
+    params.push(displayName || null);
+  }
+  if (password) {
+    const passwordHash = await hashPassword(password);
+    updates.push('password_hash = ?');
+    params.push(passwordHash);
+  }
+
+  if (!updates.length) {
+    return findUserById(studentId);
+  }
+
+  params.push(studentId, parentId);
+
+  await pool.query(
+    `UPDATE users
+     SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
+     WHERE id = ? AND parent_id = ?`,
+    params
+  );
+
+  return findUserById(studentId);
+}
+
+export async function deleteStudentAccount({ parentId, studentId }) {
+  const [result] = await pool.query(
+    `DELETE FROM users
+     WHERE id = ? AND parent_id = ? AND role = 'student'`,
+    [studentId, parentId]
+  );
+
+  if (result.affectedRows === 0) {
+    throw new Error('STUDENT_NOT_FOUND');
+  }
+}
+
+

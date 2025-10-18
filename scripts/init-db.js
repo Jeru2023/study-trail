@@ -20,6 +20,16 @@ async function run() {
     await pool.query(statement);
   }
 
+  try {
+    await pool.query(
+      "ALTER TABLE users ADD COLUMN display_name VARCHAR(100) NULL AFTER email"
+    );
+  } catch (error) {
+    if (error.code !== 'ER_DUP_FIELDNAME') {
+      throw error;
+    }
+  }
+
   // eslint-disable-next-line no-console
   console.log('✅ 数据库结构初始化完成');
 }

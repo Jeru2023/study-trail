@@ -1,10 +1,11 @@
-import express from 'express';
+﻿import express from 'express';
 import session from 'express-session';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
 import authRoutes from './routes/authRoutes.js';
+import taskRoutes from './routes/taskRoutes.js';
 import { healthCheck } from './db/pool.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,10 +50,11 @@ app.get('/api/health', async (_req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/tasks', taskRoutes);
 
 app.use((req, res) => {
   if (req.accepts('html')) {
     return res.status(404).sendFile(path.join(publicDir, '404.html'));
   }
-  return res.status(404).json({ message: '未找到资源' });
+  return res.status(404).json({ message: 'Resource not found' });
 });
