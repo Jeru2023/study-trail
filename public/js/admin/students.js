@@ -39,38 +39,38 @@ export function renderStudentList(container, students, { onEdit, onDelete }) {
   if (!container) return;
 
   if (!students.length) {
-    container.innerHTML = 
+    container.innerHTML = `
       <div class="empty-state">
-        <strong></strong>
-        <span></span>
+        <strong>${TEXT.emptyTitle}</strong>
+        <span>${TEXT.emptySubtitle}</span>
       </div>
-    ;
+    `;
     return;
   }
 
   const rows = students
     .map(
-      (student) => 
+      (student) => `
         <tr>
           <td>
             <div class="student-name">
-              <strong></strong>
-              <span class="student-login">登录名：</span>
+              <strong>${escapeHtml(student.name || student.loginName)}</strong>
+              <span class="student-login">登录名：${escapeHtml(student.loginName)}</span>
             </div>
           </td>
-          <td></td>
+          <td>${escapeHtml(formatDate(student.createdAt))}</td>
           <td>
             <div class="table__actions">
-              <button type="button" class="ghost-button" data-action="edit" data-id=""></button>
-              <button type="button" class="ghost-button" data-action="delete" data-id=""></button>
+              <button type="button" class="ghost-button" data-action="edit" data-id="${student.id}">${TEXT.edit}</button>
+              <button type="button" class="ghost-button" data-action="delete" data-id="${student.id}">${TEXT.remove}</button>
             </div>
           </td>
         </tr>
-      
+      `
     )
     .join('');
 
-  container.innerHTML = 
+  container.innerHTML = `
     <table class="table">
       <thead>
         <tr>
@@ -80,10 +80,10 @@ export function renderStudentList(container, students, { onEdit, onDelete }) {
         </tr>
       </thead>
       <tbody>
-        
+        ${rows}
       </tbody>
     </table>
-  ;
+  `;
 
   qsa('[data-action="edit"]', container).forEach((btn) => {
     btn.addEventListener('click', () => {
