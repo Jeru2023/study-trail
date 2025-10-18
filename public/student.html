@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>学迹 · 今日打卡</title>
+    <link rel="stylesheet" href="/css/student.css" />
+  </head>
+  <body>
+    <div class="student-shell">
+      <header class="student-topbar">
+        <div class="student-topbar__info">
+          <h1 id="studentGreeting">今日打卡</h1>
+          <p class="student-topbar__meta">
+            <span id="studentDateText"></span>
+          </p>
+        </div>
+        <div class="student-topbar__actions">
+          <button type="button" class="primary-button" id="logoutStudentBtn">退出登录</button>
+        </div>
+      </header>
+
+      <main class="student-content">
+        <p class="page-message" id="studentPageMessage"></p>
+        <section id="taskContainer" class="task-container"></section>
+        <p class="empty-hint" id="emptyHint" hidden>今日还没有分配任务，先休息一下吧～</p>
+      </main>
+    </div>
+
+    <div class="modal" id="completeModal" hidden>
+      <div class="modal__backdrop" data-action="close-modal"></div>
+      <div class="modal__dialog">
+        <header class="modal__header">
+          <h2 id="completeModalTitle">完成打卡</h2>
+          <button type="button" class="icon-button" id="closeCompleteModal" aria-label="关闭">&times;</button>
+        </header>
+        <form id="completeForm" class="modal__form">
+          <div class="modal__summary">
+            <strong id="completeTaskTitle"></strong>
+            <p id="completeSubtaskTitle"></p>
+          </div>
+          <label class="form-field">
+            <span class="form-label">完成情况描述</span>
+            <textarea name="notes" rows="4" placeholder="今天完成得怎么样？需要记录的亮点或困难？"></textarea>
+          </label>
+          <label class="form-field">
+            <span class="form-label">上传照片</span>
+            <input type="file" name="photos" id="completePhotos" accept="image/*" multiple />
+            <small class="form-hint" id="photoHint">最多可上传 6 张，每张不超过 10MB。</small>
+          </label>
+          <p class="form-message" id="completeFormMessage"></p>
+          <div class="modal__actions">
+            <button type="button" class="ghost-button" id="cancelCompleteBtn">取消</button>
+            <button type="submit" class="primary-button">提交完成</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script type="module" src="/js/student/main.js"></script>
+  </body>
+</html>

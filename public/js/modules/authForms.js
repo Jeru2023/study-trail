@@ -45,8 +45,8 @@ async function handleLogin(event, loginForm, loginMessage) {
       return;
     }
 
-    setMessage(loginMessage, TEXT.loginWelcome(user.loginName), 'success');
-    loginForm.reset();
+    window.location.href = '/student.html';
+    return;
   } catch (error) {
     setMessage(loginMessage, error.message, 'error');
   } finally {

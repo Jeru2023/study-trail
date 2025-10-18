@@ -2,16 +2,29 @@
   'Content-Type': 'application/json'
 };
 
-export async function request(path, { method = "GET", data } = {}) {
+export async function request(path, { method = 'GET', data, headers = {} } = {}) {
   let response;
+  const options = {
+    method,
+    credentials: 'include'
+  };
+  let requestHeaders = { ...headers };
+
+  if (data instanceof FormData) {
+    options.body = data;
+  } else if (data !== undefined) {
+    options.body = JSON.stringify(data);
+    requestHeaders = { ...JSON_HEADERS, ...requestHeaders };
+  } else if (Object.keys(requestHeaders).length === 0) {
+    requestHeaders = null;
+  }
+
+  if (requestHeaders) {
+    options.headers = requestHeaders;
+  }
 
   try {
-    response = await fetch(path, {
-      method,
-      headers: JSON_HEADERS,
-      body: data ? JSON.stringify(data) : undefined,
-      credentials: "include"
-    });
+    response = await fetch(path, options);
   } catch (error) {
     throw new Error('\u65e0\u6cd5\u8fde\u63a5\u670d\u52a1\u5668\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002');
   }
@@ -88,4 +101,24 @@ export function saveAssignments(payload) {
 
 export function removeAssignments(studentId) {
   return request(`/api/student-tasks/${studentId}`, { method: 'DELETE' });
+}
+
+export function fetchStudentDailyTasks(date) {
+  const search = date ? `?date=${encodeURIComponent(date)}` : '';
+  return request(`/api/student/daily-tasks${search}`);
+}
+
+export function createStudentSubtask(taskId, payload) {
+  return request(`/api/student/daily-tasks/${taskId}/subtasks`, { method: 'POST', data: payload });
+}
+
+export function startStudentSubtask(entryId) {
+  return request(`/api/student/subtasks/${entryId}/start`, { method: 'PATCH' });
+}
+
+export function completeStudentSubtask(entryId, formData) {
+  return request(`/api/student/subtasks/${entryId}/complete`, {
+    method: 'POST',
+    data: formData
+  });
 }

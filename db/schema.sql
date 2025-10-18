@@ -61,3 +61,48 @@ CREATE TABLE IF NOT EXISTS student_tasks (
     REFERENCES tasks (id)
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS student_task_entries (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  parent_id BIGINT UNSIGNED NOT NULL,
+  student_id BIGINT UNSIGNED NOT NULL,
+  task_id BIGINT UNSIGNED NOT NULL,
+  entry_date DATE NOT NULL,
+  title VARCHAR(180) NOT NULL,
+  notes TEXT NULL,
+  status ENUM('pending', 'in_progress', 'completed') NOT NULL DEFAULT 'pending',
+  started_at DATETIME NULL,
+  completed_at DATETIME NULL,
+  duration_seconds INT UNSIGNED NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_student_task_entries_student_date (student_id, entry_date),
+  KEY idx_student_task_entries_task (task_id),
+  CONSTRAINT fk_student_task_entries_parent
+    FOREIGN KEY (parent_id)
+    REFERENCES users (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_student_task_entries_student
+    FOREIGN KEY (student_id)
+    REFERENCES users (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_student_task_entries_task
+    FOREIGN KEY (task_id)
+    REFERENCES tasks (id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS student_task_entry_photos (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  entry_id BIGINT UNSIGNED NOT NULL,
+  file_path VARCHAR(255) NOT NULL,
+  original_name VARCHAR(255) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_student_task_entry_photos_entry (entry_id),
+  CONSTRAINT fk_student_task_entry_photos_entry
+    FOREIGN KEY (entry_id)
+    REFERENCES student_task_entries (id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

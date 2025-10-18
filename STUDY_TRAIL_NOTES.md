@@ -42,3 +42,9 @@
 - 支持查看学生与任务的对应列表，以及新增、编辑（覆盖重新选择的任务集合）和删除操作。
 - 新增关联时先选择学生，再多选一个或多个打卡任务；若学生或任务列表为空，界面会提示先完成基础配置。
 - 新建表 `student_tasks`（列：parent_id、student_id、task_id 及时间戳），并对 `student_id + task_id` 建唯一索引。
+
+### 需求 5：学生打卡页面
+- 学生登录后跳转至 student.html 页面集中展示当日任务列表，可查看积分、有效期和子任务状态。
+- 后端新增 student_task_entries 与 student_task_entry_photos 两张表，记录学生自建子任务、打卡时间以及上传的图片信息。
+- 新增 API：GET /api/student/daily-tasks 查询每日任务，POST /api/student/daily-tasks/:taskId/subtasks 创建子任务，PATCH /api/student/subtasks/:entryId/start 记录开始时间，POST /api/student/subtasks/:entryId/complete 完成并上传照片。
+- 学生前端支持新增子任务、开始计时、完成提交（含多图上传与完成心得），并展示已完成任务的耗时及照片链接。

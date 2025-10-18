@@ -2,16 +2,23 @@
 import session from 'express-session';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
 import authRoutes from './routes/authRoutes.js';
 import taskRoutes from './routes/taskRoutes.js';
 import studentTaskRoutes from './routes/studentTaskRoutes.js';
+import studentDailyTaskRoutes from './routes/studentDailyTaskRoutes.js';
 import { healthCheck } from './db/pool.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.resolve(__dirname, '../public');
+const uploadsDir = config.uploads.baseDir;
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 export const app = express();
 
@@ -56,8 +63,10 @@ app.use('/api/student-tasks', (req, _res, next) => {
   next();
 });
 app.use('/api/student-tasks', studentTaskRoutes);
+app.use('/api/student', studentDailyTaskRoutes);
 
 app.use(express.static(publicDir));
+app.use(config.uploads.baseUrl, express.static(uploadsDir));
 
 app.use((req, res) => {
   if (req.path.startsWith('/api/')) {

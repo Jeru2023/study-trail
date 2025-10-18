@@ -56,7 +56,8 @@ export async function login(req, res) {
       role: user.role,
       loginName: user.login_name,
       email: user.email || null,
-      name: user.display_name || null
+      name: user.display_name || null,
+      parentId: user.parent_id || null
     };
 
     return res.json({ user: sanitizeUser(user) });
