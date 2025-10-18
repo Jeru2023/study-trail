@@ -295,7 +295,8 @@ body {
   z-index: 1000;
 }
 
-.identity-overlay[data-open='false'] {
+.identity-overlay[data-open='false'],
+.identity-overlay.is-hidden {
   display: none;
 }
 

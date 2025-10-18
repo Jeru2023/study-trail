@@ -1,12 +1,14 @@
-async function request(path, { method = 'GET', data } = {}) {
+const JSON_HEADERS = {
+  'Content-Type': 'application/json'
+};
+
+export async function request(path, { method = 'GET', data } = {}) {
   let response;
 
   try {
     response = await fetch(path, {
       method,
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: JSON_HEADERS,
       body: data ? JSON.stringify(data) : undefined,
       credentials: 'include'
     });
@@ -46,4 +48,24 @@ export function createStudent(payload) {
 
 export function fetchStudents() {
   return request('/api/auth/students');
+}
+
+export function getCurrentUser() {
+  return request('/api/auth/me');
+}
+
+export function fetchTasks() {
+  return request('/api/tasks');
+}
+
+export function createTask(payload) {
+  return request('/api/tasks', { method: 'POST', data: payload });
+}
+
+export function updateTask(taskId, payload) {
+  return request(`/api/tasks/${taskId}`, { method: 'PUT', data: payload });
+}
+
+export function removeTask(taskId) {
+  return request(`/api/tasks/${taskId}`, { method: 'DELETE' });
 }

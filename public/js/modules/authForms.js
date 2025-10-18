@@ -2,10 +2,21 @@ import { login, registerParent } from './apiClient.js';
 import { setRole, getRole, onRoleChange } from './state.js';
 import { disableForm, qsa, setMessage, toggleHidden } from './dom.js';
 
+const TEXT = {
+  studentTitle: '学迹 · 学生登录',
+  parentTitle: '学迹 · 家长登录',
+  fillRequired: '请填写完整信息',
+  loggingIn: '正在登录...',
+  loginWelcome: (name) => `欢迎回来，${name}！`,
+  creatingAccount: '正在创建账号...',
+  signupSuccess: '注册成功，请使用新账号登录。',
+  parentOnly: '家长身份可注册，学生请联系家长创建账号。'
+};
+
 function updateShellRole(shell, role) {
   if (!shell) return;
   shell.dataset.role = role;
-  document.title = role === 'parent' ? '学迹 · 家长登录' : '学迹 · 学生登录';
+  document.title = role === 'parent' ? TEXT.parentTitle : TEXT.studentTitle;
 }
 
 async function handleLogin(event, loginForm, loginMessage) {
@@ -20,15 +31,21 @@ async function handleLogin(event, loginForm, loginMessage) {
   };
 
   if (!payload.loginName || !payload.password) {
-    setMessage(loginMessage, '请填写完整信息', 'error');
+    setMessage(loginMessage, TEXT.fillRequired, 'error');
     return;
   }
 
   try {
     disableForm(loginForm, true);
-    setMessage(loginMessage, '正在登录...', 'info');
+    setMessage(loginMessage, TEXT.loggingIn, 'info');
     const { user } = await login(payload);
-    setMessage(loginMessage, `欢迎回来，${user.loginName}！`, 'success');
+
+    if (user.role === 'parent') {
+      window.location.href = '/admin.html';
+      return;
+    }
+
+    setMessage(loginMessage, TEXT.loginWelcome(user.loginName), 'success');
     loginForm.reset();
   } catch (error) {
     setMessage(loginMessage, error.message, 'error');
@@ -48,16 +65,16 @@ async function handleSignup(event, signupForm, signupMessage) {
   };
 
   if (!payload.loginName || !payload.email || !payload.password) {
-    setMessage(signupMessage, '请填写完整信息', 'error');
+    setMessage(signupMessage, TEXT.fillRequired, 'error');
     return;
   }
 
   try {
     disableForm(signupForm, true);
-    setMessage(signupMessage, '正在创建账号...', 'info');
+    setMessage(signupMessage, TEXT.creatingAccount, 'info');
     await registerParent(payload);
     setRole('parent');
-    setMessage(signupMessage, '注册成功，请使用新账号登录。', 'success');
+    setMessage(signupMessage, TEXT.signupSuccess, 'success');
     signupForm.reset();
   } catch (error) {
     setMessage(signupMessage, error.message, 'error');
@@ -95,24 +112,32 @@ function updateUIForRole({
     toggleHidden(parentCta, true);
     toggleHidden(studentCta, false);
     toggleHidden(signupPanel, true);
+    setMessage(loginMessage, TEXT.parentOnly, 'info');
   } else {
     toggleHidden(ctaPanel, false);
     toggleHidden(parentCta, false);
     toggleHidden(studentCta, true);
+    toggleHidden(signupPanel, signupPanel?.dataset?.mode !== 'open');
   }
 }
 
 function setupSignupToggle({ showSignupBtn, closeSignupBtn, signupPanel, ctaPanel }) {
   if (showSignupBtn) {
     showSignupBtn.addEventListener('click', () => {
-      toggleHidden(signupPanel, false);
+      if (signupPanel) {
+        signupPanel.hidden = false;
+        signupPanel.dataset.mode = 'open';
+      }
       toggleHidden(ctaPanel, true);
     });
   }
 
   if (closeSignupBtn) {
     closeSignupBtn.addEventListener('click', () => {
-      toggleHidden(signupPanel, true);
+      if (signupPanel) {
+        signupPanel.hidden = true;
+        signupPanel.dataset.mode = 'closed';
+      }
       toggleHidden(ctaPanel, false);
     });
   }
