@@ -1,10 +1,12 @@
-﻿const state = {
+const state = {
   user: null,
   activeView: 'tasks',
   tasks: [],
   students: [],
+  assignments: [],
   editingTaskId: null,
-  editingStudentId: null
+  editingStudentId: null,
+  editingAssignmentStudentId: null
 };
 
 export function setUser(user) {
@@ -39,6 +41,14 @@ export function getStudents() {
   return state.students;
 }
 
+export function setAssignments(assignments) {
+  state.assignments = assignments;
+}
+
+export function getAssignments() {
+  return state.assignments;
+}
+
 export function setEditingTaskId(taskId) {
   state.editingTaskId = taskId;
 }
@@ -53,4 +63,12 @@ export function setEditingStudentId(id) {
 
 export function getEditingStudentId() {
   return state.editingStudentId;
+}
+
+export function setEditingAssignmentStudentId(studentId) {
+  state.editingAssignmentStudentId = studentId;
+}
+
+export function getEditingAssignmentStudentId() {
+  return state.editingAssignmentStudentId;
 }

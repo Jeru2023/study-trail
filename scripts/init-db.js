@@ -22,7 +22,17 @@ async function run() {
 
   try {
     await pool.query(
-      "ALTER TABLE users ADD COLUMN display_name VARCHAR(100) NULL AFTER email"
+      'ALTER TABLE users ADD COLUMN display_name VARCHAR(100) NULL AFTER email'
+    );
+  } catch (error) {
+    if (error.code !== 'ER_DUP_FIELDNAME') {
+      throw error;
+    }
+  }
+
+  try {
+    await pool.query(
+      'ALTER TABLE tasks ADD COLUMN points INT UNSIGNED NOT NULL DEFAULT 0 AFTER description'
     );
   } catch (error) {
     if (error.code !== 'ER_DUP_FIELDNAME') {
@@ -31,13 +41,13 @@ async function run() {
   }
 
   // eslint-disable-next-line no-console
-  console.log('✅ 数据库结构初始化完成');
+  console.log('数据库结构初始化完成');
 }
 
 run()
   .catch((error) => {
     // eslint-disable-next-line no-console
-    console.error('❌ 初始化失败', error);
+    console.error('数据库初始化失败', error);
     process.exitCode = 1;
   })
   .finally(() => {

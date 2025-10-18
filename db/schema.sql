@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   parent_id BIGINT UNSIGNED NOT NULL,
   title VARCHAR(150) NOT NULL,
   description TEXT NULL,
+  points INT UNSIGNED NOT NULL DEFAULT 0,
   start_date DATE NULL,
   end_date DATE NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -32,5 +33,31 @@ CREATE TABLE IF NOT EXISTS tasks (
   CONSTRAINT fk_tasks_parent
     FOREIGN KEY (parent_id)
     REFERENCES users (id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS student_tasks (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  parent_id BIGINT UNSIGNED NOT NULL,
+  student_id BIGINT UNSIGNED NOT NULL,
+  task_id BIGINT UNSIGNED NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uniq_student_task (student_id, task_id),
+  KEY idx_student_tasks_parent (parent_id),
+  KEY idx_student_tasks_student (student_id),
+  KEY idx_student_tasks_task (task_id),
+  CONSTRAINT fk_student_tasks_parent
+    FOREIGN KEY (parent_id)
+    REFERENCES users (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_student_tasks_student
+    FOREIGN KEY (student_id)
+    REFERENCES users (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_student_tasks_task
+    FOREIGN KEY (task_id)
+    REFERENCES tasks (id)
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

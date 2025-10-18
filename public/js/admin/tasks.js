@@ -11,6 +11,7 @@ const TEXT = {
   edit: '\u7f16\u8f91',
   remove: '\u5220\u9664',
   columnTask: '\u4efb\u52a1',
+  columnPoints: '\u4efb\u52a1\u79ef\u5206',
   columnPeriod: '\u5468\u671f',
   columnCreated: '\u521b\u5efa\u65f6\u95f4',
   columnActions: '\u64cd\u4f5c'
@@ -59,6 +60,14 @@ function formatPeriod(task) {
   return TEXT.periodTo(end);
 }
 
+function formatPoints(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed < 0) {
+    return '0';
+  }
+  return String(parsed);
+}
+
 export function renderTaskList(container, tasks, { onEdit, onDelete }) {
   if (!container) return;
 
@@ -84,6 +93,7 @@ export function renderTaskList(container, tasks, { onEdit, onDelete }) {
               ${safeDescription ? `<p class="task-desc">${safeDescription}</p>` : ''}
             </div>
           </td>
+          <td>${escapeHtml(formatPoints(task.points))}</td>
           <td>${escapeHtml(formatPeriod(task))}</td>
           <td>${escapeHtml(formatDate(task.created_at))}</td>
           <td>
@@ -102,6 +112,7 @@ export function renderTaskList(container, tasks, { onEdit, onDelete }) {
       <thead>
         <tr>
           <th>${TEXT.columnTask}</th>
+          <th>${TEXT.columnPoints}</th>
           <th>${TEXT.columnPeriod}</th>
           <th>${TEXT.columnCreated}</th>
           <th>${TEXT.columnActions}</th>
@@ -128,11 +139,18 @@ export function renderTaskList(container, tasks, { onEdit, onDelete }) {
 
 export function resetTaskForm(form) {
   form.reset();
+  if (form.elements.points) {
+    form.elements.points.value = '0';
+  }
 }
 
 export function populateTaskForm(form, task) {
   form.elements.title.value = task?.title ?? '';
   form.elements.description.value = task?.description ?? '';
+  if (form.elements.points) {
+    form.elements.points.value =
+      task?.points !== undefined && task?.points !== null ? String(task.points) : '0';
+  }
   form.elements.startDate.value = task?.start_date ?? '';
   form.elements.endDate.value = task?.end_date ?? '';
 }
@@ -142,10 +160,14 @@ export function readTaskForm(form) {
   const description = form.elements.description.value.trim();
   const startDate = form.elements.startDate.value;
   const endDate = form.elements.endDate.value;
+  const pointsValue = form.elements.points.value.trim();
+  const parsedPoints = Number.parseInt(pointsValue, 10);
+  const points = Number.isNaN(parsedPoints) ? null : parsedPoints;
 
   return {
     title,
     description: description || null,
+    points,
     startDate: startDate || null,
     endDate: endDate || null
   };

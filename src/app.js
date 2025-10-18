@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { config } from './config.js';
 import authRoutes from './routes/authRoutes.js';
 import taskRoutes from './routes/taskRoutes.js';
+import studentTaskRoutes from './routes/studentTaskRoutes.js';
 import { healthCheck } from './db/pool.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -38,8 +39,6 @@ app.use(
   })
 );
 
-app.use(express.static(publicDir));
-
 app.get('/api/health', async (_req, res) => {
   try {
     await healthCheck();
@@ -51,8 +50,19 @@ app.get('/api/health', async (_req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/student-tasks', (req, _res, next) => {
+  // eslint-disable-next-line no-console
+  console.debug(`[student-tasks] ${req.method} ${req.originalUrl}`);
+  next();
+});
+app.use('/api/student-tasks', studentTaskRoutes);
+
+app.use(express.static(publicDir));
 
 app.use((req, res) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ message: 'Resource not found' });
+  }
   if (req.accepts('html')) {
     return res.status(404).sendFile(path.join(publicDir, '404.html'));
   }

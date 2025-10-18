@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
@@ -26,6 +26,9 @@
           </button>
           <button class="nav-item" data-view="students" id="navStudents">
             <span>学生账号</span>
+          </button>
+          <button class="nav-item" data-view="assignments" id="navAssignments">
+            <span>任务关联</span>
           </button>
           <button class="nav-item" disabled>学习数据</button>
           <button class="nav-item" disabled>成长档案</button>
@@ -76,6 +79,18 @@
             <p class="page-message" id="studentMessage"></p>
             <section id="studentList" class="card"></section>
           </section>
+
+          <section class="view" data-view="assignments" hidden>
+            <div class="page-header">
+              <div>
+                <h1>任务关联</h1>
+                <p class="page-subtitle">为每位学生安排个性化的打卡任务组合。</p>
+              </div>
+              <button type="button" class="primary-button" id="addAssignmentBtn">添加关联</button>
+            </div>
+            <p class="page-message" id="assignmentMessage"></p>
+            <section id="assignmentList" class="card"></section>
+          </section>
         </main>
       </div>
     </div>
@@ -96,6 +111,11 @@
           <label class="form-field">
             <span class="form-label">任务说明</span>
             <textarea name="description" rows="4" placeholder="补充任务要求或奖励机制"></textarea>
+          </label>
+
+          <label class="form-field">
+            <span class="form-label">任务积分</span>
+            <input type="number" name="points" min="0" step="1" required placeholder="例如：10" />
           </label>
 
           <div class="form-grid">
@@ -144,6 +164,35 @@
 
           <div class="modal__actions">
             <button type="button" class="ghost-button" id="cancelStudentBtn">取消</button>
+            <button type="submit" class="primary-button">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal" id="assignmentModal" hidden>
+      <div class="modal__backdrop" data-action="close-modal"></div>
+      <div class="modal__dialog">
+        <header class="modal__header">
+          <h2 id="assignmentModalTitle">添加关联</h2>
+          <button type="button" class="icon-button" id="closeAssignmentModal" aria-label="关闭">×</button>
+        </header>
+        <form id="assignmentForm" class="modal__form">
+          <label class="form-field">
+            <span class="form-label">选择学生</span>
+            <select name="studentId" required></select>
+          </label>
+
+          <div class="form-field">
+            <span class="form-label">选择打卡任务</span>
+            <div class="form-hint">可多选，至少选择一项以建立关联。</div>
+            <div data-assignment-tasks class="assignment-task-options"></div>
+          </div>
+
+          <p class="form-message" id="assignmentFormMessage"></p>
+
+          <div class="modal__actions">
+            <button type="button" class="ghost-button" id="cancelAssignmentBtn">取消</button>
             <button type="submit" class="primary-button">保存</button>
           </div>
         </form>

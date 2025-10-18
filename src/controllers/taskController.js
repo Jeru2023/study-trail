@@ -6,10 +6,24 @@ import {
   updateTask
 } from '../services/taskService.js';
 
+const RESPONSE_TEXT = {
+  forbidden: '\u6ca1\u6709\u6743\u9650',
+  fetchFailed: '\u83b7\u53d6\u4efb\u52a1\u5931\u8d25',
+  notFound: '\u4efb\u52a1\u4e0d\u5b58\u5728',
+  titleRequired: '\u4efb\u52a1\u6807\u9898\u4e0d\u80fd\u4e3a\u7a7a',
+  pointsRequired: '\u8bf7\u586b\u5199\u4efb\u52a1\u79ef\u5206',
+  pointsInvalid: '\u4efb\u52a1\u79ef\u5206\u5fc5\u987b\u662f\u5927\u4e8e\u7b49\u4e8e 0 \u7684\u6574\u6570',
+  dateInvalid: '\u65e5\u671f\u683c\u5f0f\u4e0d\u6b63\u786e',
+  dateRangeInvalid: '\u7ed3\u675f\u65e5\u671f\u5fc5\u987b\u665a\u4e8e\u5f00\u59cb\u65e5\u671f',
+  createFailed: '\u521b\u5efa\u4efb\u52a1\u5931\u8d25',
+  updateFailed: '\u66f4\u65b0\u4efb\u52a1\u5931\u8d25',
+  deleteFailed: '\u5220\u9664\u4efb\u52a1\u5931\u8d25'
+};
+
 function ensureParentSession(req, res) {
   const sessionUser = req.session.user;
   if (!sessionUser || sessionUser.role !== 'parent') {
-    res.status(403).json({ message: '没有权限' });
+    res.status(403).json({ message: RESPONSE_TEXT.forbidden });
     return null;
   }
   return sessionUser;
@@ -23,7 +37,7 @@ export async function listTasks(req, res) {
     const tasks = await listTasksByParent(sessionUser.id);
     res.json({ tasks });
   } catch (error) {
-    res.status(500).json({ message: '获取任务失败', detail: error.message });
+    res.status(500).json({ message: RESPONSE_TEXT.fetchFailed, detail: error.message });
   }
 }
 
@@ -34,11 +48,11 @@ export async function getTask(req, res) {
   try {
     const task = await findTaskById(sessionUser.id, Number(req.params.taskId));
     if (!task) {
-      return res.status(404).json({ message: '任务不存在' });
+      return res.status(404).json({ message: RESPONSE_TEXT.notFound });
     }
     return res.json({ task });
   } catch (error) {
-    return res.status(500).json({ message: '获取任务失败', detail: error.message });
+    return res.status(500).json({ message: RESPONSE_TEXT.fetchFailed, detail: error.message });
   }
 }
 
@@ -47,12 +61,22 @@ function parseTaskPayload(body) {
   const description = body.description?.trim() || null;
   const startDate = body.startDate ? new Date(body.startDate) : null;
   const endDate = body.endDate ? new Date(body.endDate) : null;
+  const pointsRaw = body.points;
 
   if (!title) {
     throw new Error('TITLE_REQUIRED');
   }
 
-  const payload = { title, description };
+  if (pointsRaw === undefined || pointsRaw === null || pointsRaw === '') {
+    throw new Error('POINTS_REQUIRED');
+  }
+
+  const points = Number.parseInt(String(pointsRaw).trim(), 10);
+  if (Number.isNaN(points) || points < 0) {
+    throw new Error('POINTS_INVALID');
+  }
+
+  const payload = { title, description, points };
 
   if (startDate && Number.isNaN(startDate.getTime())) {
     throw new Error('INVALID_START_DATE');
@@ -64,16 +88,8 @@ function parseTaskPayload(body) {
     throw new Error('DATE_RANGE_INVALID');
   }
 
-  if (startDate) {
-    payload.startDate = startDate.toISOString().slice(0, 10);
-  } else {
-    payload.startDate = null;
-  }
-  if (endDate) {
-    payload.endDate = endDate.toISOString().slice(0, 10);
-  } else {
-    payload.endDate = null;
-  }
+  payload.startDate = startDate ? startDate.toISOString().slice(0, 10) : null;
+  payload.endDate = endDate ? endDate.toISOString().slice(0, 10) : null;
 
   return payload;
 }
@@ -88,15 +104,21 @@ export async function createTaskHandler(req, res) {
     res.status(201).json({ task });
   } catch (error) {
     if (error.message === 'TITLE_REQUIRED') {
-      return res.status(400).json({ message: '任务标题不能为空' });
+      return res.status(400).json({ message: RESPONSE_TEXT.titleRequired });
+    }
+    if (error.message === 'POINTS_REQUIRED') {
+      return res.status(400).json({ message: RESPONSE_TEXT.pointsRequired });
+    }
+    if (error.message === 'POINTS_INVALID') {
+      return res.status(400).json({ message: RESPONSE_TEXT.pointsInvalid });
     }
     if (error.message === 'INVALID_START_DATE' || error.message === 'INVALID_END_DATE') {
-      return res.status(400).json({ message: '日期格式不正确' });
+      return res.status(400).json({ message: RESPONSE_TEXT.dateInvalid });
     }
     if (error.message === 'DATE_RANGE_INVALID') {
-      return res.status(400).json({ message: '结束日期必须晚于开始日期' });
+      return res.status(400).json({ message: RESPONSE_TEXT.dateRangeInvalid });
     }
-    return res.status(500).json({ message: '创建任务失败', detail: error.message });
+    return res.status(500).json({ message: RESPONSE_TEXT.createFailed, detail: error.message });
   }
 }
 
@@ -108,7 +130,7 @@ export async function updateTaskHandler(req, res) {
     const taskId = Number(req.params.taskId);
     const existing = await findTaskById(sessionUser.id, taskId);
     if (!existing) {
-      return res.status(404).json({ message: '任务不存在' });
+      return res.status(404).json({ message: RESPONSE_TEXT.notFound });
     }
 
     const payload = parseTaskPayload(req.body);
@@ -116,15 +138,21 @@ export async function updateTaskHandler(req, res) {
     return res.json({ task });
   } catch (error) {
     if (error.message === 'TITLE_REQUIRED') {
-      return res.status(400).json({ message: '任务标题不能为空' });
+      return res.status(400).json({ message: RESPONSE_TEXT.titleRequired });
+    }
+    if (error.message === 'POINTS_REQUIRED') {
+      return res.status(400).json({ message: RESPONSE_TEXT.pointsRequired });
+    }
+    if (error.message === 'POINTS_INVALID') {
+      return res.status(400).json({ message: RESPONSE_TEXT.pointsInvalid });
     }
     if (error.message === 'INVALID_START_DATE' || error.message === 'INVALID_END_DATE') {
-      return res.status(400).json({ message: '日期格式不正确' });
+      return res.status(400).json({ message: RESPONSE_TEXT.dateInvalid });
     }
     if (error.message === 'DATE_RANGE_INVALID') {
-      return res.status(400).json({ message: '结束日期必须晚于开始日期' });
+      return res.status(400).json({ message: RESPONSE_TEXT.dateRangeInvalid });
     }
-    return res.status(500).json({ message: '更新任务失败', detail: error.message });
+    return res.status(500).json({ message: RESPONSE_TEXT.updateFailed, detail: error.message });
   }
 }
 
@@ -136,10 +164,10 @@ export async function deleteTaskHandler(req, res) {
     const taskId = Number(req.params.taskId);
     const ok = await deleteTask(sessionUser.id, taskId);
     if (!ok) {
-      return res.status(404).json({ message: '任务不存在' });
+      return res.status(404).json({ message: RESPONSE_TEXT.notFound });
     }
     return res.status(204).end();
   } catch (error) {
-    return res.status(500).json({ message: '删除任务失败', detail: error.message });
+    return res.status(500).json({ message: RESPONSE_TEXT.deleteFailed, detail: error.message });
   }
 }

@@ -1,8 +1,8 @@
-const JSON_HEADERS = {
+﻿const JSON_HEADERS = {
   'Content-Type': 'application/json'
 };
 
-export async function request(path, { method = 'GET', data } = {}) {
+export async function request(path, { method = "GET", data } = {}) {
   let response;
 
   try {
@@ -10,20 +10,20 @@ export async function request(path, { method = 'GET', data } = {}) {
       method,
       headers: JSON_HEADERS,
       body: data ? JSON.stringify(data) : undefined,
-      credentials: 'include'
+      credentials: "include"
     });
   } catch (error) {
-    throw new Error('无法连接服务器，请稍后重试。');
+    throw new Error('\u65e0\u6cd5\u8fde\u63a5\u670d\u52a1\u5668\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002');
   }
 
   let payload = null;
   const contentType = response.headers.get('content-type');
-  if (contentType && contentType.includes('application/json')) {
+  if (contentType && contentType.includes("application/json")) {
     payload = await response.json();
   }
 
   if (!response.ok) {
-    const detail = payload?.message || `请求失败（${response.status}）`;
+    const detail = payload?.message || `\u8bf7\u6c42\u5931\u8d25\uff08${response.status}\uff09`;
     throw new Error(detail);
   }
 
@@ -76,4 +76,16 @@ export function updateTask(taskId, payload) {
 
 export function removeTask(taskId) {
   return request(`/api/tasks/${taskId}`, { method: 'DELETE' });
+}
+
+export function fetchAssignments() {
+  return request('/api/student-tasks');
+}
+
+export function saveAssignments(payload) {
+  return request('/api/student-tasks', { method: 'POST', data: payload });
+}
+
+export function removeAssignments(studentId) {
+  return request(`/api/student-tasks/${studentId}`, { method: 'DELETE' });
 }
