@@ -1,10 +1,10 @@
 ﻿import { qsa } from '../modules/dom.js';
 
 const TEXT = {
-  emptyTitle: '\u8FD8\u6CA1\u6709\u5B66\u751F\u8D26\u53F7',
-  emptySubtitle: '\u70B9\u51FB\u53F3\u4E0A\u89D2\u201C\u6DFB\u52A0\u5B66\u751F\u201D\u521B\u5EFA\u7B2C\u4E00\u4E2A\u5B50\u5973\u8D26\u53F7\u3002',
-  edit: '\u7F16\u8F91',
-  remove: '\u5220\u9664'
+  emptyTitle: '还没有学生账号',
+  emptySubtitle: '点击右上角“添加学生”创建第一个子女账号。',
+  edit: '编辑',
+  remove: '删除'
 };
 
 function escapeHtml(value) {
@@ -19,7 +19,7 @@ function escapeHtml(value) {
 }
 
 function formatDate(value) {
-  if (!value) return '\u2014';
+  if (!value) return '—';
   let normalized = value;
   if (typeof value === 'string' && value.includes(' ')) {
     normalized = value.replace(' ', 'T');
@@ -39,51 +39,51 @@ export function renderStudentList(container, students, { onEdit, onDelete }) {
   if (!container) return;
 
   if (!students.length) {
-    container.innerHTML = `
+    container.innerHTML = 
       <div class="empty-state">
-        <strong>${TEXT.emptyTitle}</strong>
-        <span>${TEXT.emptySubtitle}</span>
+        <strong></strong>
+        <span></span>
       </div>
-    `;
+    ;
     return;
   }
 
   const rows = students
     .map(
-      (student) => `
+      (student) => 
         <tr>
           <td>
             <div class="student-name">
-              <strong>${escapeHtml(student.name || student.loginName)}</strong>
-              <span class="student-login">\u767B\u5F55\u540D\uFF1A${escapeHtml(student.loginName)}</span>
+              <strong></strong>
+              <span class="student-login">登录名：</span>
             </div>
           </td>
-          <td>${escapeHtml(formatDate(student.createdAt))}</td>
+          <td></td>
           <td>
             <div class="table__actions">
-              <button type="button" class="ghost-button" data-action="edit" data-id="${student.id}">${TEXT.edit}</button>
-              <button type="button" class="ghost-button" data-action="delete" data-id="${student.id}">${TEXT.remove}</button>
+              <button type="button" class="ghost-button" data-action="edit" data-id=""></button>
+              <button type="button" class="ghost-button" data-action="delete" data-id=""></button>
             </div>
           </td>
         </tr>
-      `
+      
     )
     .join('');
 
-  container.innerHTML = `
+  container.innerHTML = 
     <table class="table">
       <thead>
         <tr>
-          <th>\u5B66\u751F</th>
-          <th>\u521B\u5EFA\u65F6\u95F4</th>
-          <th>\u64CD\u4F5C</th>
+          <th>学生</th>
+          <th>创建时间</th>
+          <th>操作</th>
         </tr>
       </thead>
       <tbody>
-        ${rows}
+        
       </tbody>
     </table>
-  `;
+  ;
 
   qsa('[data-action="edit"]', container).forEach((btn) => {
     btn.addEventListener('click', () => {
