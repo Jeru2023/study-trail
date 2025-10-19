@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   color-scheme: light;
   font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   line-height: 1.5;
@@ -27,44 +27,131 @@ a:hover {
 
 .student-shell {
   min-height: 100vh;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  background: #f5f7fb;
+}
+
+.student-sidebar {
+  background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
+  color: #fff;
+  padding: 2.5rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.student-sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.student-sidebar__logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.18);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.4rem;
+}
+
+.student-sidebar__meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.student-sidebar__meta strong {
+  font-size: 1.1rem;
+}
+
+.student-sidebar__meta span {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.student-sidebar__tag {
+  font-size: 0.85rem;
+  opacity: 0.65;
+}
+
+.student-nav {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.student-nav__item {
+  padding: 0.8rem 1rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  color: #fff;
+  font-size: 1rem;
+  text-align: left;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.student-nav__item:hover {
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateX(4px);
+}
+
+.student-nav__item--active {
+  background: #fff;
+  color: #1d4ed8;
+}
+
+.student-sidebar__footer {
+  margin-top: auto;
+}
+
+.student-workspace {
   display: flex;
   flex-direction: column;
 }
 
-.student-topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem 2rem;
-  background: #1d4ed8;
-  color: #fff;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
+.student-header {
+  padding: 2rem 2.5rem 1.5rem;
 }
 
-.student-topbar__info h1 {
+.student-header h1 {
   margin: 0;
-  font-size: 1.8rem;
-  font-weight: 600;
+  font-size: 1.65rem;
+  color: #0f172a;
 }
 
-.student-topbar__meta {
-  margin: 0;
-  opacity: 0.85;
+.student-header__hint {
+  margin: 0.4rem 0 0;
+  color: #64748b;
   font-size: 0.95rem;
-}
-
-.student-topbar__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
 }
 
 .student-content {
   flex: 1;
-  padding: 2rem;
-  max-width: 960px;
+  padding: 0 2.5rem 2.5rem;
   width: 100%;
+  max-width: 960px;
   margin: 0 auto;
+  display: grid;
+  gap: 2rem;
+}
+
+.student-view {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.student-view[hidden] {
+  display: none !important;
+}
+
+.student-view[data-view='store'] {
+  gap: 0.75rem;
+  align-content: start;
 }
 
 .page-message {
@@ -106,6 +193,120 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.student-store {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.student-store__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.student-store__header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.student-store__hint {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.store-message {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.9rem;
+}
+
+.store-message[data-type='error'] {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.store-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.store-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.store-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.store-card__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.store-card__points {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 0.25rem 0.75rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.store-card__description {
+  margin: 0;
+  color: #475569;
+  line-height: 1.55;
+  font-size: 0.95rem;
+}
+
+.store-card__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: #1f2933;
+}
+
+.store-card__stock {
+  font-weight: 600;
+}
+
+.store-card__stock::before {
+  content: '库存：';
+  font-weight: 500;
+  color: #64748b;
+  margin-right: 0.25rem;
+}
+
+@media (max-width: 768px) {
+  .store-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
 }
 
 .task-card {
@@ -447,6 +648,18 @@ a:hover {
   border: 1px solid rgba(15, 23, 42, 0.1);
 }
 
+.student-sidebar .ghost-button {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  padding-inline: 1.4rem;
+}
+
+.student-sidebar .ghost-button:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
 .ghost-button:hover {
   background: rgba(37, 99, 235, 0.08);
 }
@@ -567,26 +780,7 @@ a:hover {
   gap: 0.75rem;
 }
 
-@media (max-width: 768px) {
-  .student-topbar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .student-topbar__actions {
-    flex-wrap: wrap;
-    justify-content: flex-start;
-  }
-
-  .student-content {
-    padding: 1.5rem 1rem 3rem;
-  }
-
-  .task-card {
-    padding: 1.25rem;
-  }
-}
+@media (max-width: 960px) {\n  .student-shell {\n    grid-template-columns: 1fr;\n  }\n\n  .student-sidebar {\n    flex-direction: row;\n    align-items: center;\n    justify-content: space-between;\n    gap: 1.5rem;\n    padding: 1.5rem;\n  }\n\n  .student-nav {\n    display: flex;\n    gap: 0.6rem;\n  }\n\n  .student-nav__item {\n    flex: 1;\n    text-align: center;\n  }\n\n  .student-sidebar__footer {\n    margin-top: 0;\n  }\n\n  .student-header {\n    padding: 1.5rem 1.5rem 1rem;\n  }\n\n  .student-content {\n    padding: 0 1.5rem 2rem;\n  }\n}\n\n@media (max-width: 640px) {\n  .student-sidebar {\n    flex-direction: column;\n    align-items: flex-start;\n    gap: 1rem;\n  }\n\n  .student-nav {\n    width: 100%;\n  }\n\n  .student-nav__item {\n    width: 100%;\n  }\n\n  .student-content {\n    padding: 0 1.25rem 2rem;\n  }\n}\n
 
 .subtask-review-warning {
   margin: 0;

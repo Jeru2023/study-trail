@@ -2,6 +2,7 @@
   completeStudentSubtask,
   createStudentSubtask,
   fetchStudentDailyTasks,
+  fetchRewards,
   getCurrentUser,
   logout,
   startStudentSubtask
@@ -20,19 +21,28 @@ const REVIEW_STATUS_TEXT = {
 
 const state = {
   date: new Date().toISOString().slice(0, 10),
+  activeView: 'tasks',
   tasks: [],
+  rewards: [],
   student: null,
   completingEntry: null,
   previewUrls: [],
-  remainingCapacity: MAX_PROOFS
+  remainingCapacity: MAX_PROOFS,
+  storeLoaded: false
 };
 
 const elements = {
   greeting: qs('#studentGreeting'),
-  dateText: qs('#studentDateText'),
+  dateText: qs('#studentDateHeading'),
   logoutBtn: qs('#logoutStudentBtn'),
   container: qs('#taskContainer'),
+  storeSection: qs('#studentStore'),
+  storeList: qs('#storeList'),
+  storeMessage: qs('#storeMessage'),
   emptyHint: qs('#emptyHint'),
+  views: Array.from(document.querySelectorAll('.student-view')),
+  navTasks: qs('#studentNavTasks'),
+  navStore: qs('#studentNavStore'),
   pageMessage: qs('#studentPageMessage'),
   completeModal: qs('#completeModal'),
   completeForm: qs('#completeForm'),
@@ -121,6 +131,32 @@ function setLoading(flag) {
   }
 }
 
+function getActiveView() {
+  return state.activeView;
+}
+
+function highlightNav(view) {
+  [elements.navTasks, elements.navStore].forEach((button) => {
+    if (!button) return;
+    const active = button.dataset.view === view;
+    button.classList.toggle('student-nav__item--active', active);
+  });
+}
+
+function showView(view) {
+  if (elements.views?.length) {
+    elements.views.forEach((section) => {
+      toggleHidden(section, section.dataset.view !== view);
+    });
+  }
+  highlightNav(view);
+}
+
+function updateHeaderTitle(view) {
+  if (!elements.headerTitle) return;
+  elements.headerTitle.textContent = view === 'store' ? '积分商城' : '每日任务';
+}
+
 function clearContainer() {
   while (elements.container?.firstChild) {
     elements.container.removeChild(elements.container.firstChild);
@@ -149,6 +185,79 @@ function normalizeTasks(tasks) {
     ...task,
     subtasks: task.subtasks.map((subtask) => normalizeEntry(subtask))
   }));
+}
+
+function formatRewardStock(stock) {
+  if (stock === null || stock === undefined) {
+    return '不限量';
+  }
+  if (stock === 0) {
+    return '已兑完';
+  }
+  return `剩余 ${stock} 件`;
+}
+
+function renderStoreCard(reward) {
+  const description = reward.description
+    ? `<p class="store-card__description">${escapeHtml(reward.description)}</p>`
+    : '';
+
+  return `
+    <article class="store-card">
+      <div class="store-card__header">
+        <h3 class="store-card__title">${escapeHtml(reward.title)}</h3>
+        <span class="store-card__points">${reward.pointsCost} 积分</span>
+      </div>
+      ${description}
+      <div class="store-card__footer">
+        <span class="store-card__stock">${escapeHtml(formatRewardStock(reward.stock))}</span>
+      </div>
+    </article>
+  `;
+}
+
+function renderStore() {
+  if (!elements.storeList) return;
+  if (!state.rewards.length) {
+    elements.storeList.innerHTML = '';
+    if (elements.storeMessage) {
+      setMessage(elements.storeMessage, '暂无上架的奖励，继续努力赚积分吧！', '');
+      toggleHidden(elements.storeMessage, false);
+    }
+    return;
+  }
+
+  elements.storeList.innerHTML = state.rewards
+    .map((reward) => renderStoreCard(reward))
+    .join('');
+  if (elements.storeMessage) {
+    setMessage(elements.storeMessage, '', '');
+    toggleHidden(elements.storeMessage, true);
+  }
+}
+
+async function loadStore({ silent } = {}) {
+  if (!elements.storeList) return;
+  try {
+    if (!silent) {
+      elements.storeList.innerHTML = `<p class="loading">正在加载奖励...</p>`;
+      if (elements.storeMessage) {
+        toggleHidden(elements.storeMessage, true);
+      }
+    }
+    const { rewards } = await fetchRewards();
+    state.rewards = rewards ?? [];
+    state.storeLoaded = true;
+    renderStore();
+  } catch (error) {
+    state.rewards = [];
+    state.storeLoaded = false;
+    elements.storeList.innerHTML = '';
+    if (elements.storeMessage) {
+      setMessage(elements.storeMessage, error.message, 'error');
+      toggleHidden(elements.storeMessage, false);
+    }
+  }
 }
 
 function updateSubtaskInState(entry) {
@@ -667,6 +776,14 @@ async function handleCompleteFormSubmit(event) {
   }
 }
 
+async function changeView(view) {
+  if (!view || view === getActiveView()) return;
+  state.activeView = view;
+  showView(view);
+  if (view === 'store') {
+    await loadStore({ silent: state.storeLoaded });
+  }
+}
 function handleTaskContainerClick(event) {
   const action = event.target.closest('[data-action]');
   if (!action) return;
@@ -688,6 +805,18 @@ function handleTaskContainerClick(event) {
 }
 
 function registerEvents() {
+  if (elements.navTasks) {
+    elements.navTasks.addEventListener('click', (event) => {
+      event.preventDefault();
+      changeView('tasks');
+    });
+  }
+  if (elements.navStore) {
+    elements.navStore.addEventListener('click', (event) => {
+      event.preventDefault();
+      changeView('store');
+    });
+  }
   elements.container?.addEventListener('submit', handleSubtaskFormSubmit);
   elements.container?.addEventListener('click', handleTaskContainerClick);
 
@@ -771,7 +900,7 @@ async function ensureStudentSession() {
     }
     state.student = user;
     const displayName = user.name || user.loginName;
-    elements.greeting.textContent = displayName ? `${displayName}，今日打卡` : '今日打卡';
+    elements.greeting.textContent = displayName || '';
     return true;
   } catch (error) {
     window.location.href = '/';
@@ -785,7 +914,14 @@ async function bootstrap() {
     return;
   }
   updateDateHeader();
-  loadTasks();
+  updateHeaderTitle(getActiveView());
+  showView(getActiveView());
+  await loadTasks();
+  await loadStore({ silent: true });
 }
 
 document.addEventListener('DOMContentLoaded', bootstrap);
+
+
+
+

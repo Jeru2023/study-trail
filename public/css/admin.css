@@ -285,6 +285,16 @@ button {
   color: var(--color-primary-dark);
 }
 
+.ghost-button--danger {
+  border-color: rgba(185, 28, 28, 0.35);
+  color: #b91c1c;
+}
+
+.ghost-button--danger:hover {
+  border-color: rgba(185, 28, 28, 0.55);
+  background: #fee2e2;
+}
+
 .icon-button {
   padding: 0.4rem 0.8rem;
   border-radius: 8px;
@@ -708,6 +718,128 @@ button {
   opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+.form-field--inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.form-field--inline .checkbox {
+  margin: 0;
+}
+
+.reward-list {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.reward-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(44, 62, 80, 0.08);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.reward-card__main {
+  flex: 1 1 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.reward-card__title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.reward-card__status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 0.4rem;
+}
+
+.reward-card__status--active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.reward-card__status--inactive {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.reward-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin: 0;
+}
+
+.reward-card__meta div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.reward-card__meta dt {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.reward-card__meta dd {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.reward-card__description {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+.reward-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 140px;
+}
+
+.reward-card__actions .ghost-button {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .reward-card {
+    flex-direction: column;
+  }
+
+  .reward-card__actions {
+    width: 100%;
+    flex-direction: row;
+  }
+
+  .reward-card__actions .ghost-button {
+    flex: 1;
+  }
 }
 
 @media (max-width: 768px) {

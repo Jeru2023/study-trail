@@ -6,9 +6,11 @@ const state = {
   tasks: [],
   students: [],
   assignments: [],
+  rewards: [],
   editingTaskId: null,
   editingStudentId: null,
-  editingAssignmentStudentId: null
+  editingAssignmentStudentId: null,
+  editingRewardId: null
 };
 
 export function setUser(user) {
@@ -51,6 +53,14 @@ export function getAssignments() {
   return state.assignments;
 }
 
+export function setRewards(rewards) {
+  state.rewards = rewards;
+}
+
+export function getRewards() {
+  return state.rewards;
+}
+
 export function setApprovals(entries) {
   state.approvals = entries;
 }
@@ -89,6 +99,14 @@ export function setEditingAssignmentStudentId(studentId) {
 
 export function getEditingAssignmentStudentId() {
   return state.editingAssignmentStudentId;
+}
+
+export function setEditingRewardId(rewardId) {
+  state.editingRewardId = rewardId;
+}
+
+export function getEditingRewardId() {
+  return state.editingRewardId;
 }
 
 

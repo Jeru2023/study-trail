@@ -33,6 +33,9 @@
           <button class="nav-item" data-view="approvals" id="navApprovals">
             <span>打卡审批</span>
           </button>
+          <button class="nav-item" data-view="rewards" id="navRewards">
+            <span>积分商城</span>
+          </button>
           <button class="nav-item" disabled>学习数据</button>
           <button class="nav-item" disabled>成长档案</button>
           <button class="nav-item" disabled>消息中心</button>
@@ -83,7 +86,7 @@
             <section id="studentList" class="card"></section>
           </section>
 
-                    <section class="view" data-view="assignments" hidden>
+          <section class="view" data-view="assignments" hidden>
             <div class="page-header">
               <div>
                 <h1>任务分配</h1>
@@ -95,7 +98,19 @@
             <section id="assignmentList" class="card"></section>
           </section>
 
-                    <section class="view" data-view="approvals" hidden>
+          <section class="view" data-view="rewards" hidden>
+            <div class="page-header">
+              <div>
+                <h1>积分商城</h1>
+                <p class="page-subtitle">设置孩子可以使用积分兑换的奖励。</p>
+              </div>
+              <button type="button" class="primary-button" id="addRewardBtn">新增奖励</button>
+            </div>
+            <p class="page-message" id="rewardMessage"></p>
+            <section id="rewardList" class="reward-list"></section>
+          </section>
+
+          <section class="view" data-view="approvals" hidden>
             <div class="page-header">
               <div>
                 <h1>打卡审批</h1>
@@ -208,6 +223,59 @@
 
           <div class="modal__actions">
             <button type="button" class="ghost-button" id="cancelAssignmentBtn">取消</button>
+            <button type="submit" class="primary-button">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal" id="rewardModal" hidden>
+      <div class="modal__backdrop" data-action="close-modal"></div>
+      <div class="modal__dialog">
+        <header class="modal__header">
+          <h2 id="rewardModalTitle">新增奖励</h2>
+          <button type="button" class="icon-button" id="closeRewardModal" aria-label="关闭">×</button>
+        </header>
+        <form id="rewardForm" class="modal__form">
+          <label class="form-field">
+            <span class="form-label">奖励名称</span>
+            <input type="text" name="title" required maxlength="150" placeholder="例如：周末看电影" />
+          </label>
+
+          <div class="form-grid">
+            <label class="form-field">
+              <span class="form-label">所需积分</span>
+              <input type="number" name="pointsCost" min="0" step="1" required placeholder="例如：100" />
+            </label>
+            <label class="form-field">
+              <span class="form-label">库存数量</span>
+              <input
+                type="number"
+                name="stock"
+                min="0"
+                step="1"
+                placeholder="留空表示不限量"
+              />
+            </label>
+          </div>
+
+          <label class="form-field">
+            <span class="form-label">奖励说明</span>
+            <textarea name="description" rows="3" placeholder="补充奖励细节或兑换说明"></textarea>
+          </label>
+
+          <label class="form-field form-field--inline">
+            <span class="form-label">状态</span>
+            <label class="checkbox">
+              <input type="checkbox" name="isActive" checked />
+              <span>上架可兑换</span>
+            </label>
+          </label>
+
+          <p class="form-message" id="rewardFormMessage"></p>
+
+          <div class="modal__actions">
+            <button type="button" class="ghost-button" id="cancelRewardBtn">取消</button>
             <button type="submit" class="primary-button">保存</button>
           </div>
         </form>

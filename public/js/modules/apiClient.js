@@ -139,3 +139,19 @@ export function rejectStudentEntry(entryId, payload) {
 export function deleteApprovalEntry(entryId) {
   return request(`/api/approvals/entries/${entryId}`, { method: 'DELETE' });
 }
+
+export function fetchRewards() {
+  return request('/api/rewards');
+}
+
+export function createReward(payload) {
+  return request('/api/rewards', { method: 'POST', data: payload });
+}
+
+export function updateReward(rewardId, payload) {
+  return request(`/api/rewards/${rewardId}`, { method: 'PUT', data: payload });
+}
+
+export function deleteReward(rewardId) {
+  return request(`/api/rewards/${rewardId}`, { method: 'DELETE' });
+}

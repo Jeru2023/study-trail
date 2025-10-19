@@ -12,9 +12,13 @@
   saveAssignments,
   removeAssignments,
   fetchApprovalEntries,
+  fetchRewards,
   approveStudentEntry,
   rejectStudentEntry,
   deleteApprovalEntry,
+  createReward,
+  updateReward,
+  deleteReward,
   logout
 } from '../modules/apiClient.js';
 import { qs, qsa, setMessage, disableForm, toggleHidden } from '../modules/dom.js';
@@ -23,18 +27,22 @@ import {
   getEditingStudentId,
   getEditingTaskId,
   getEditingAssignmentStudentId,
+  getEditingRewardId,
   getStudents,
   getTasks,
   getAssignments,
+  getRewards,
   getApprovals,
   getApprovalsDate,
   setActiveView,
   setEditingStudentId,
   setEditingTaskId,
   setEditingAssignmentStudentId,
+  setEditingRewardId,
   setStudents,
   setTasks,
   setAssignments,
+  setRewards,
   setApprovals,
   setApprovalsDate,
   setUser
@@ -50,6 +58,12 @@ import {
   readAssignmentForm
 } from './assignments.js';
 import { renderApprovalList } from './approvals.js';
+import {
+  populateRewardForm,
+  readRewardForm,
+  renderRewardList,
+  resetRewardForm
+} from './rewards.js';
 
 const TEXT = {
   task: {
@@ -89,6 +103,18 @@ const TEXT = {
     noTasks: '请先创建任务',
     confirmDelete: (name) => `确认清空学生「${name}」的所有分配吗？`
   },
+  reward: {
+    modalCreateTitle: '新增奖励',
+    modalEditTitle: '编辑奖励',
+    loading: '正在加载奖励...',
+    saveInProgress: '正在保存奖励...',
+    saveSuccess: '奖励保存成功',
+    deleteSuccess: '奖励已删除',
+    titleRequired: '请填写奖励名称',
+    pointsInvalid: '积分值需为不小于 0 的整数',
+    stockInvalid: '库存需为不小于 0 的整数，或留空表示不限',
+    confirmDelete: (title) => `确认删除奖励「${title}」吗？`
+  },
   approval: {
     loading: '正在获取今日打卡记录...',
     refreshSuccess: '审批列表已更新',
@@ -108,9 +134,11 @@ const elements = {
   navStudents: qs('#navStudents'),
   navAssignments: qs('#navAssignments'),
   navApprovals: qs('#navApprovals'),
+  navRewards: qs('#navRewards'),
   addTaskBtn: qs('#addTaskBtn'),
   addStudentBtn: qs('#addStudentBtn'),
   addAssignmentBtn: qs('#addAssignmentBtn'),
+  addRewardBtn: qs('#addRewardBtn'),
   logoutButton: qs('#logoutButton'),
   task: {
     message: qs('#taskMessage'),
@@ -142,6 +170,16 @@ const elements = {
     cancelBtn: qs('#cancelAssignmentBtn'),
     closeBtn: qs('#closeAssignmentModal'),
     taskContainer: qs('[data-assignment-tasks]')
+  },
+  reward: {
+    message: qs('#rewardMessage'),
+    list: qs('#rewardList'),
+    modal: qs('#rewardModal'),
+    title: qs('#rewardModalTitle'),
+    form: qs('#rewardForm'),
+    formMessage: qs('#rewardFormMessage'),
+    cancelBtn: qs('#cancelRewardBtn'),
+    closeBtn: qs('#closeRewardModal')
   },
   approval: {
     message: qs('#approvalMessage'),
@@ -563,6 +601,126 @@ async function submitAssignment(event) {
   }
 }
 
+// ----- Reward helpers -----
+
+function setRewardModalMode(mode) {
+  if (!elements.reward.modal) return;
+  elements.reward.modal.dataset.mode = mode;
+  if (elements.reward.title) {
+    elements.reward.title.textContent =
+      mode === 'edit' ? TEXT.reward.modalEditTitle : TEXT.reward.modalCreateTitle;
+  }
+}
+
+function openRewardModal(mode, reward = null) {
+  setRewardModalMode(mode);
+  if (elements.reward.formMessage) setMessage(elements.reward.formMessage, '', '');
+  if (mode === 'edit' && reward) {
+    populateRewardForm(elements.reward.form, reward);
+    setEditingRewardId(reward.id);
+  } else {
+    resetRewardForm(elements.reward.form);
+    setEditingRewardId(null);
+  }
+  if (elements.reward.modal) elements.reward.modal.hidden = false;
+}
+
+function closeRewardModal() {
+  if (elements.reward.modal) elements.reward.modal.hidden = true;
+  if (elements.reward.form) resetRewardForm(elements.reward.form);
+  setEditingRewardId(null);
+  if (elements.reward.formMessage) setMessage(elements.reward.formMessage, '', '');
+}
+
+async function loadRewards({ silent } = {}) {
+  if (!elements.reward.list) return;
+  try {
+    if (!silent) {
+      elements.reward.list.innerHTML = `<p class="loading">${TEXT.reward.loading}</p>`;
+    }
+    const { rewards } = await fetchRewards();
+    setRewards(rewards ?? []);
+    renderRewardList(elements.reward.list, getRewards(), {
+      onEdit: handleEditReward,
+      onDelete: handleDeleteReward
+    });
+    if (elements.reward.message) {
+      setMessage(elements.reward.message, '', '');
+    }
+  } catch (error) {
+    elements.reward.list.innerHTML = '';
+    if (elements.reward.message) {
+      setMessage(elements.reward.message, error.message, 'error');
+    }
+  }
+}
+
+function handleEditReward(rewardId) {
+  const reward = getRewards().find((item) => item.id === rewardId);
+  if (!reward) return;
+  openRewardModal('edit', reward);
+}
+
+async function handleDeleteReward(rewardId) {
+  const reward = getRewards().find((item) => item.id === rewardId);
+  if (!reward) return;
+  if (!window.confirm(TEXT.reward.confirmDelete(reward.title))) {
+    return;
+  }
+  try {
+    await deleteReward(rewardId);
+    if (elements.reward.message) {
+      setMessage(elements.reward.message, TEXT.reward.deleteSuccess, 'success');
+    }
+    await loadRewards({ silent: true });
+  } catch (error) {
+    if (elements.reward.message) {
+      setMessage(elements.reward.message, error.message, 'error');
+    }
+  }
+}
+
+async function submitReward(event) {
+  event.preventDefault();
+  if (!elements.reward.form) return;
+  const payload = readRewardForm(elements.reward.form);
+  if (!payload.title) {
+    setMessage(elements.reward.formMessage, TEXT.reward.titleRequired, 'error');
+    return;
+  }
+  if (!Number.isInteger(payload.pointsCost) || payload.pointsCost < 0) {
+    setMessage(elements.reward.formMessage, TEXT.reward.pointsInvalid, 'error');
+    return;
+  }
+  if (
+    payload.stock !== null &&
+    (!Number.isInteger(payload.stock) || payload.stock < 0)
+  ) {
+    setMessage(elements.reward.formMessage, TEXT.reward.stockInvalid, 'error');
+    return;
+  }
+
+  const editingId = getEditingRewardId();
+  try {
+    disableForm(elements.reward.form, true);
+    setMessage(elements.reward.formMessage, TEXT.reward.saveInProgress, 'info');
+    if (editingId) {
+      await updateReward(editingId, payload);
+    } else {
+      await createReward(payload);
+    }
+    if (elements.reward.message) {
+      setMessage(elements.reward.message, TEXT.reward.saveSuccess, 'success');
+    }
+    await loadRewards({ silent: true });
+    closeRewardModal();
+  } catch (error) {
+    setMessage(elements.reward.formMessage, error.message, 'error');
+  } finally {
+    disableForm(elements.reward.form, false);
+  }
+}
+
 // ----- Approval helpers -----
 
 function formatApprovalDateLabel(value) {
@@ -702,6 +860,8 @@ async function changeView(view) {
     await loadAssignments();
   } else if (view === 'approvals') {
     await loadApprovals({ silent: true });
+  } else if (view === 'rewards') {
+    await loadRewards({ silent: true });
   }
 }
 
@@ -726,6 +886,9 @@ function setupNavigation() {
   }
   if (elements.navApprovals) {
     elements.navApprovals.addEventListener('click', () => changeView('approvals'));
+  }
+  if (elements.navRewards) {
+    elements.navRewards.addEventListener('click', () => changeView('rewards'));
   }
 }
 
@@ -772,6 +935,20 @@ function setupModalInteractions() {
     });
   }
 
+  if (elements.reward.cancelBtn) {
+    elements.reward.cancelBtn.addEventListener('click', closeRewardModal);
+  }
+  if (elements.reward.closeBtn) {
+    elements.reward.closeBtn.addEventListener('click', closeRewardModal);
+  }
+  if (elements.reward.modal) {
+    elements.reward.modal.addEventListener('click', (event) => {
+      if (event.target.dataset.action === 'close-modal') {
+        closeRewardModal();
+      }
+    });
+  }
+
   window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       if (elements.task.modal && !elements.task.modal.hidden) {
@@ -782,6 +959,9 @@ function setupModalInteractions() {
       }
       if (elements.assignment.modal && !elements.assignment.modal.hidden) {
         closeAssignmentModal();
+      }
+      if (elements.reward.modal && !elements.reward.modal.hidden) {
+        closeRewardModal();
       }
     }
   });
@@ -815,6 +995,8 @@ async function bootstrap() {
       await loadAssignments();
     } else if (initialView === 'approvals') {
       await loadApprovals({ silent: true });
+    } else if (initialView === 'rewards') {
+      await loadRewards({ silent: true });
     } else {
       await loadTasks();
     }
@@ -833,6 +1015,9 @@ function main() {
   if (elements.addAssignmentBtn) {
     elements.addAssignmentBtn.addEventListener('click', handleAddAssignment);
   }
+  if (elements.addRewardBtn) {
+    elements.addRewardBtn.addEventListener('click', () => openRewardModal('create'));
+  }
   if (elements.task.form) {
     elements.task.form.addEventListener('submit', submitTask);
   }
@@ -841,6 +1026,9 @@ function main() {
   }
   if (elements.assignment.form) {
     elements.assignment.form.addEventListener('submit', submitAssignment);
+  }
+  if (elements.reward.form) {
+    elements.reward.form.addEventListener('submit', submitReward);
   }
   if (elements.logoutButton) {
     elements.logoutButton.addEventListener('click', handleLogout);

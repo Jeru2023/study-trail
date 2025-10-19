@@ -134,3 +134,19 @@ CREATE TABLE IF NOT EXISTS student_points_history (
   CONSTRAINT fk_points_task_entry FOREIGN KEY (task_entry_id) REFERENCES student_task_entries (id) ON DELETE CASCADE,
   CONSTRAINT fk_points_task FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS reward_items (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  parent_id BIGINT UNSIGNED NOT NULL,
+  title VARCHAR(150) NOT NULL,
+  description TEXT NULL,
+  points_cost INT UNSIGNED NOT NULL,
+  stock INT UNSIGNED NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_reward_items_parent (parent_id),
+  KEY idx_reward_items_active (is_active),
+  CONSTRAINT fk_reward_items_parent FOREIGN KEY (parent_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

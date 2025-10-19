@@ -8,23 +8,54 @@
   </head>
   <body>
     <div class="student-shell">
-      <header class="student-topbar">
-        <div class="student-topbar__info">
-          <h1 id="studentGreeting">今日打卡</h1>
-          <p class="student-topbar__meta">
-            <span id="studentDateText"></span>
-          </p>
+      <aside class="student-sidebar">
+        <div class="student-sidebar__brand">
+          <span class="student-sidebar__logo">学</span>
+          <div class="student-sidebar__meta">
+            <strong id="studentGreeting"></strong>
+            <span class="student-sidebar__tag">继续保持好习惯</span>
+          </div>
         </div>
-        <div class="student-topbar__actions">
-          <button type="button" class="primary-button" id="logoutStudentBtn">退出登录</button>
+        <nav class="student-nav">
+          <button type="button" class="student-nav__item student-nav__item--active" data-view="tasks" id="studentNavTasks">
+            每日任务
+          </button>
+          <button type="button" class="student-nav__item" data-view="store" id="studentNavStore">
+            积分商城
+          </button>
+        </nav>
+        <div class="student-sidebar__footer">
+          <button type="button" class="ghost-button" id="logoutStudentBtn">退出登录</button>
         </div>
-      </header>
+      </aside>
 
-      <main class="student-content">
-        <p class="page-message" id="studentPageMessage"></p>
-        <section id="taskContainer" class="task-container"></section>
-        <p class="empty-hint" id="emptyHint" hidden>今日还没有分配任务，先休息一下吧～</p>
-      </main>
+      <div class="student-workspace">
+        <header class="student-header">
+          <div>
+            <h1 id="studentHeaderTitle">每日任务</h1>
+            <p class="student-header__hint" id="studentDateHeading">--</p>
+          </div>
+        </header>
+        <main class="student-content">
+          <p class="page-message" id="studentPageMessage"></p>
+
+          <section class="student-view" data-view="tasks">
+            <section id="taskContainer" class="task-container"></section>
+            <p class="empty-hint" id="emptyHint" hidden>今日还没有分配任务，先休息一下吧～</p>
+          </section>
+
+          <section class="student-view" data-view="store" hidden>
+            <section class="student-store" id="studentStore">
+              <div class="student-store__header">
+                <h2>积分商城</h2>
+                <p class="student-store__hint">看看有哪些奖励等着你，用积分兑换喜欢的惊喜。</p>
+              </div>
+              <p class="store-message" id="storeMessage" hidden></p>
+              <div class="store-grid" id="storeList"></div>
+            </section>
+          </section>
+        </main>
+      </div>
     </div>
 
     <div class="modal" id="completeModal" hidden>

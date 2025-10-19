@@ -10,6 +10,7 @@ import taskRoutes from './routes/taskRoutes.js';
 import studentTaskRoutes from './routes/studentTaskRoutes.js';
 import studentDailyTaskRoutes from './routes/studentDailyTaskRoutes.js';
 import parentApprovalRoutes from './routes/parentApprovalRoutes.js';
+import rewardRoutes from './routes/rewardRoutes.js';
 import { healthCheck } from './db/pool.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -66,6 +67,7 @@ app.use('/api/student-tasks', (req, _res, next) => {
 app.use('/api/student-tasks', studentTaskRoutes);
 app.use('/api/student', studentDailyTaskRoutes);
 app.use('/api/approvals', parentApprovalRoutes);
+app.use('/api/rewards', rewardRoutes);
 
 app.use(express.static(publicDir));
 app.use(config.uploads.baseUrl, express.static(uploadsDir));
