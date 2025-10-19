@@ -21,7 +21,10 @@
           </div>
         </div>
         <nav class="sidebar__nav">
-          <button class="nav-item nav-item--active" data-view="tasks" id="navTasks">
+          <button class="nav-item nav-item--active" data-view="analytics" id="navAnalytics">
+            <span>数据分析</span>
+          </button>
+          <button class="nav-item" data-view="tasks" id="navTasks">
             <span>打卡任务</span>
           </button>
           <button class="nav-item" data-view="students" id="navStudents">
@@ -36,7 +39,12 @@
           <button class="nav-item" data-view="rewards" id="navRewards">
             <span>积分商城</span>
           </button>
-          <button class="nav-item" disabled>学习数据</button>
+          <button class="nav-item" data-view="redeem" id="navRedeem">
+            <span>积分兑换</span>
+          </button>
+          <button class="nav-item" data-view="points" id="navPoints">
+            <span>积分管理</span>
+          </button>
           <button class="nav-item" disabled>成长档案</button>
           <button class="nav-item" disabled>消息中心</button>
         </nav>
@@ -62,7 +70,76 @@
         </header>
 
         <main class="content">
-          <section class="view" data-view="tasks">
+          <section class="view" data-view="analytics">
+            <div class="page-header">
+              <div>
+                <h1>数据分析</h1>
+                <p class="page-subtitle">用数据洞察积分趋势与学生表现，助力科学激励。</p>
+              </div>
+              <div class="page-actions">
+                <button type="button" class="ghost-button" id="analyticsRefreshBtn">刷新数据</button>
+              </div>
+            </div>
+
+            <p class="page-message" id="analyticsMessage"></p>
+
+            <section id="analyticsSummary" class="analytics-summary"></section>
+
+            <section class="analytics-controls">
+              <div class="analytics-filters" id="analyticsSourceFilters"></div>
+              <div
+                class="analytics-ranges"
+                id="analyticsRangeTabs"
+                role="tablist"
+                aria-label="数据分析时间范围"
+              >
+                <button type="button" class="chip-button" data-range="today" role="tab" aria-selected="false">
+                  今日
+                </button>
+                <button type="button" class="chip-button" data-range="week" role="tab" aria-selected="false">
+                  近 7 日
+                </button>
+                <button type="button" class="chip-button" data-range="month" role="tab" aria-selected="false">
+                  近 30 日
+                </button>
+              </div>
+            </section>
+
+            <section class="analytics-grid">
+              <article class="analytics-panel">
+                <header class="analytics-panel__header">
+                  <h2>学生积分排行榜</h2>
+                  <span class="analytics-panel__meta" id="analyticsLeaderboardMeta"></span>
+                </header>
+                <div id="analyticsLeaderboard" class="analytics-leaderboard"></div>
+              </article>
+
+              <article class="analytics-panel">
+                <header class="analytics-panel__header">
+                  <h2>积分趋势</h2>
+                  <span class="analytics-panel__meta" id="analyticsTrendMeta"></span>
+                </header>
+                <div id="analyticsTrendChart" class="analytics-trend"></div>
+                <div id="analyticsSourceBreakdown" class="analytics-sources"></div>
+              </article>
+            </section>
+
+            <section class="analytics-panel analytics-panel--full">
+              <header class="analytics-panel__header">
+                <h2>学生积分明细</h2>
+                <div class="analytics-panel__actions">
+                  <select id="analyticsStudentSelect" aria-label="选择学生查看积分明细"></select>
+                  <button type="button" class="ghost-button ghost-button--small" id="analyticsStudentRefreshBtn">
+                    刷新
+                  </button>
+                </div>
+              </header>
+              <div id="analyticsStudentSummary" class="analytics-student-summary"></div>
+              <ul id="analyticsStudentHistory" class="analytics-history"></ul>
+            </section>
+          </section>
+
+          <section class="view" data-view="tasks" hidden>
             <div class="page-header">
               <div>
                 <h1>打卡任务</h1>
@@ -98,6 +175,17 @@
             <section id="assignmentList" class="card"></section>
           </section>
 
+          <section class="view" data-view="approvals" hidden>
+            <div class="page-header">
+              <div>
+                <h1>打卡审批</h1>
+                <p class="page-subtitle">查看孩子今日的打卡记录 <span id="approvalDateLabel"></span></p>
+              </div>
+              <button type="button" class="primary-button" id="refreshApprovalsBtn">刷新</button>
+            </div>
+            <p class="page-message" id="approvalMessage"></p>
+            <section id="approvalList" class="card approval-list"></section>
+          </section>
           <section class="view" data-view="rewards" hidden>
             <div class="page-header">
               <div>
@@ -110,16 +198,162 @@
             <section id="rewardList" class="reward-list"></section>
           </section>
 
-          <section class="view" data-view="approvals" hidden>
+          <section class="view" data-view="redeem" hidden>
             <div class="page-header">
               <div>
-                <h1>打卡审批</h1>
-                <p class="page-subtitle">查看孩子今日的打卡记录 <span id="approvalDateLabel"></span></p>
+                <h1>积分兑换</h1>
+                <p class="page-subtitle">为孩子扣除积分，完成奖励兑换并同步库存。</p>
               </div>
-              <button type="button" class="primary-button" id="refreshApprovalsBtn">刷新</button>
+              <button type="button" class="ghost-button" id="redeemRefreshBtn">刷新</button>
             </div>
-            <p class="page-message" id="approvalMessage"></p>
-            <section id="approvalList" class="card approval-list"></section>
+            <p class="page-message" id="redeemMessage"></p>
+            <div class="points-layout">
+              <aside class="points-students card" id="redeemStudentList"></aside>
+              <section class="points-detail card" id="redeemDetail" data-empty="true">
+                <div class="points-detail__placeholder" id="redeemEmptyHint">
+                  <p>请选择一位学生进行兑换。</p>
+                </div>
+                <div class="points-detail__content" id="redeemDetailContent" hidden>
+                  <header class="points-detail__header">
+                    <div>
+                      <h2 id="redeemStudentName">学生姓名</h2>
+                      <p class="points-detail__meta">
+                        <span id="redeemStudentLogin"></span>
+                        <span id="redeemStudentUpdated"></span>
+                      </p>
+                    </div>
+                    <div class="points-detail__balance">
+                      <span class="points-detail__balance-label">当前积分</span>
+                      <span class="points-detail__balance-value" id="redeemStudentBalance">0</span>
+                    </div>
+                  </header>
+
+                  <section class="points-actions-group">
+                    <form id="redeemForm" class="points-form">
+                      <h3>兑换奖励</h3>
+                      <div class="form-grid">
+                        <label class="form-field">
+                          <span class="form-label">选择奖励</span>
+                          <select name="rewardId" required>
+                            <option value="">请选择奖励</option>
+                          </select>
+                        </label>
+                        <label class="form-field">
+                          <span class="form-label">兑换数量</span>
+                          <input type="number" name="quantity" min="1" step="1" value="1" />
+                        </label>
+                      </div>
+                      <label class="form-field">
+                        <span class="form-label">备注说明</span>
+                        <input
+                          type="text"
+                          name="note"
+                          maxlength="120"
+                          placeholder="记录兑换场景（选填）"
+                        />
+                      </label>
+                      <p class="form-message" id="redeemFormMessage"></p>
+                      <div class="form-actions">
+                        <button type="submit" class="primary-button">确认兑换</button>
+                      </div>
+                    </form>
+                  </section>
+
+                  <section class="points-history">
+                    <header class="points-history__header">
+                      <h3>积分记录</h3>
+                      <button
+                        type="button"
+                        class="ghost-button ghost-button--small"
+                        id="redeemHistoryRefreshBtn"
+                      >
+                        刷新记录
+                      </button>
+                    </header>
+                    <ul class="points-history__list" id="redeemHistoryList"></ul>
+                  </section>
+                </div>
+              </section>
+            </div>
+          </section>
+
+          <section class="view" data-view="points" hidden>
+            <div class="page-header">
+              <div>
+                <h1>积分管理</h1>
+                <p class="page-subtitle">针对孩子进行积分加减，掌握积分账户动态。</p>
+              </div>
+              <button type="button" class="ghost-button" id="pointsRefreshBtn">刷新</button>
+            </div>
+            <p class="page-message" id="pointsMessage"></p>
+            <div class="points-layout">
+              <aside class="points-students card" id="pointsStudentList"></aside>
+              <section class="points-detail card" id="pointsDetail" data-empty="true">
+                <div class="points-detail__placeholder" id="pointsEmptyHint">
+                  <p>请选择一位学生查看积分详情。</p>
+                </div>
+                <div class="points-detail__content" id="pointsDetailContent" hidden>
+                  <header class="points-detail__header">
+                    <div>
+                      <h2 id="pointsStudentName">学生姓名</h2>
+                      <p class="points-detail__meta">
+                        <span id="pointsStudentLogin"></span>
+                        <span id="pointsStudentUpdated"></span>
+                      </p>
+                    </div>
+                    <div class="points-detail__balance">
+                      <span class="points-detail__balance-label">当前积分</span>
+                      <span class="points-detail__balance-value" id="pointsStudentBalance">0</span>
+                    </div>
+                  </header>
+
+                  <section class="points-actions-group">
+                    <form id="pointsAdjustForm" class="points-form">
+                      <h3>积分加减</h3>
+                      <div class="form-grid">
+                        <label class="form-field">
+                          <span class="form-label">调整积分</span>
+                          <input
+                            type="number"
+                            name="delta"
+                            required
+                            step="1"
+                            placeholder="输入正数或负数"
+                          />
+                        </label>
+                        <label class="form-field">
+                          <span class="form-label">备注说明</span>
+                          <input
+                            type="text"
+                            name="note"
+                            maxlength="120"
+                            placeholder="记录调整原因（选填）"
+                          />
+                        </label>
+                      </div>
+                      <p class="form-message" id="pointsAdjustMessage"></p>
+                      <div class="form-actions">
+                        <button type="submit" class="primary-button">确认调整</button>
+                      </div>
+                    </form>
+                  </section>
+
+                  <section class="points-history">
+                    <header class="points-history__header">
+                      <h3>积分记录</h3>
+                      <button
+                        type="button"
+                        class="ghost-button ghost-button--small"
+                        id="pointsHistoryRefreshBtn"
+                      >
+                        刷新记录
+                      </button>
+                    </header>
+                    <ul class="points-history__list" id="pointsHistoryList"></ul>
+                  </section>
+                </div>
+              </section>
+            </div>
           </section>
         </main>
       </div>

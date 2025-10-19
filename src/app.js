@@ -11,6 +11,8 @@ import studentTaskRoutes from './routes/studentTaskRoutes.js';
 import studentDailyTaskRoutes from './routes/studentDailyTaskRoutes.js';
 import parentApprovalRoutes from './routes/parentApprovalRoutes.js';
 import rewardRoutes from './routes/rewardRoutes.js';
+import pointRoutes from './routes/pointRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
 import { healthCheck } from './db/pool.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -68,6 +70,8 @@ app.use('/api/student-tasks', studentTaskRoutes);
 app.use('/api/student', studentDailyTaskRoutes);
 app.use('/api/approvals', parentApprovalRoutes);
 app.use('/api/rewards', rewardRoutes);
+app.use('/api/points', pointRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 app.use(express.static(publicDir));
 app.use(config.uploads.baseUrl, express.static(uploadsDir));

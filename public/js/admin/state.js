@@ -1,16 +1,30 @@
 const state = {
   user: null,
-  activeView: 'tasks',
+  activeView: 'analytics',
   approvals: [],
   approvalsDate: null,
   tasks: [],
   students: [],
   assignments: [],
   rewards: [],
+  pointsStudents: [],
+  pointsHistory: [],
+  activePointsStudentId: null,
+  redeemStudents: [],
+  redeemHistory: [],
+  activeRedeemStudentId: null,
   editingTaskId: null,
   editingStudentId: null,
   editingAssignmentStudentId: null,
-  editingRewardId: null
+  editingRewardId: null,
+  analyticsDashboard: null,
+  analyticsFilters: {
+    groups: ['task', 'other'],
+    sources: ['task', 'manual', 'reward_redeem']
+  },
+  analyticsRange: 'today',
+  analyticsStudentId: null,
+  analyticsStudentHistory: null
 };
 
 export function setUser(user) {
@@ -61,6 +75,54 @@ export function getRewards() {
   return state.rewards;
 }
 
+export function setPointsStudents(students) {
+  state.pointsStudents = students;
+}
+
+export function getPointsStudents() {
+  return state.pointsStudents;
+}
+
+export function setPointsHistory(entries) {
+  state.pointsHistory = entries;
+}
+
+export function getPointsHistory() {
+  return state.pointsHistory;
+}
+
+export function setActivePointsStudentId(studentId) {
+  state.activePointsStudentId = studentId;
+}
+
+export function getActivePointsStudentId() {
+  return state.activePointsStudentId;
+}
+
+export function setRedeemStudents(students) {
+  state.redeemStudents = students;
+}
+
+export function getRedeemStudents() {
+  return state.redeemStudents;
+}
+
+export function setRedeemHistory(entries) {
+  state.redeemHistory = entries;
+}
+
+export function getRedeemHistory() {
+  return state.redeemHistory;
+}
+
+export function setActiveRedeemStudentId(studentId) {
+  state.activeRedeemStudentId = studentId;
+}
+
+export function getActiveRedeemStudentId() {
+  return state.activeRedeemStudentId;
+}
+
 export function setApprovals(entries) {
   state.approvals = entries;
 }
@@ -107,6 +169,46 @@ export function setEditingRewardId(rewardId) {
 
 export function getEditingRewardId() {
   return state.editingRewardId;
+}
+
+export function setAnalyticsDashboard(dashboard) {
+  state.analyticsDashboard = dashboard;
+}
+
+export function getAnalyticsDashboard() {
+  return state.analyticsDashboard;
+}
+
+export function setAnalyticsFilters(filters) {
+  state.analyticsFilters = filters;
+}
+
+export function getAnalyticsFilters() {
+  return state.analyticsFilters;
+}
+
+export function setAnalyticsRange(range) {
+  state.analyticsRange = range;
+}
+
+export function getAnalyticsRange() {
+  return state.analyticsRange;
+}
+
+export function setAnalyticsStudentId(studentId) {
+  state.analyticsStudentId = studentId;
+}
+
+export function getAnalyticsStudentId() {
+  return state.analyticsStudentId;
+}
+
+export function setAnalyticsStudentHistory(history) {
+  state.analyticsStudentHistory = history;
+}
+
+export function getAnalyticsStudentHistory() {
+  return state.analyticsStudentHistory;
 }
 
 

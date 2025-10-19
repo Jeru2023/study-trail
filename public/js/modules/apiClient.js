@@ -140,6 +140,10 @@ export function deleteApprovalEntry(entryId) {
   return request(`/api/approvals/entries/${entryId}`, { method: 'DELETE' });
 }
 
+export function awardTaskPoints(taskId, payload) {
+  return request(`/api/approvals/tasks/${taskId}/award`, { method: 'POST', data: payload });
+}
+
 export function fetchRewards() {
   return request('/api/rewards');
 }
@@ -154,4 +158,42 @@ export function updateReward(rewardId, payload) {
 
 export function deleteReward(rewardId) {
   return request(`/api/rewards/${rewardId}`, { method: 'DELETE' });
+}
+
+export function fetchPointStudents() {
+  return request('/api/points/students');
+}
+
+export function fetchStudentPointHistory(studentId) {
+  return request(`/api/points/students/${studentId}/history`);
+}
+
+export function adjustStudentPoints(studentId, payload) {
+  return request(`/api/points/students/${studentId}/adjust`, {
+    method: 'POST',
+    data: payload
+  });
+}
+
+export function redeemStudentReward(studentId, payload) {
+  return request(`/api/points/students/${studentId}/redeem`, {
+    method: 'POST',
+    data: payload
+  });
+}
+
+export function fetchAnalyticsDashboard() {
+  return request('/api/analytics/dashboard');
+}
+
+export function fetchAnalyticsStudentHistory(studentId, { sources, since } = {}) {
+  const params = new URLSearchParams();
+  if (Array.isArray(sources) && sources.length > 0) {
+    params.set('sources', sources.join(','));
+  }
+  if (since) {
+    params.set('since', since);
+  }
+  const search = params.toString() ? `?${params.toString()}` : '';
+  return request(`/api/analytics/students/${studentId}/history${search}`);
 }

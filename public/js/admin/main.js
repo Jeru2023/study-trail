@@ -19,6 +19,13 @@
   createReward,
   updateReward,
   deleteReward,
+  awardTaskPoints,
+  fetchPointStudents,
+  fetchStudentPointHistory,
+  adjustStudentPoints,
+  redeemStudentReward,
+  fetchAnalyticsDashboard,
+  fetchAnalyticsStudentHistory,
   logout
 } from '../modules/apiClient.js';
 import { qs, qsa, setMessage, disableForm, toggleHidden } from '../modules/dom.js';
@@ -34,6 +41,12 @@ import {
   getRewards,
   getApprovals,
   getApprovalsDate,
+  getPointsStudents,
+  getPointsHistory,
+  getActivePointsStudentId,
+  getRedeemStudents,
+  getRedeemHistory,
+  getActiveRedeemStudentId,
   setActiveView,
   setEditingStudentId,
   setEditingTaskId,
@@ -45,6 +58,22 @@ import {
   setRewards,
   setApprovals,
   setApprovalsDate,
+  setPointsStudents,
+  setPointsHistory,
+  setActivePointsStudentId,
+  setRedeemStudents,
+  setRedeemHistory,
+  setActiveRedeemStudentId,
+  getAnalyticsDashboard,
+  setAnalyticsDashboard,
+  getAnalyticsFilters,
+  setAnalyticsFilters,
+  getAnalyticsRange,
+  setAnalyticsRange,
+  getAnalyticsStudentId,
+  setAnalyticsStudentId,
+  getAnalyticsStudentHistory,
+  setAnalyticsStudentHistory,
   setUser
 } from './state.js';
 import { populateTaskForm, readTaskForm, renderTaskList, resetTaskForm } from './tasks.js';
@@ -64,6 +93,17 @@ import {
   renderRewardList,
   resetRewardForm
 } from './rewards.js';
+import { renderPointsHistory, renderPointsStudentList } from './points.js';
+import {
+  SOURCE_GROUPS,
+  deriveSourcesFromGroups,
+  renderAnalyticsSummary,
+  renderAnalyticsLeaderboard,
+  renderAnalyticsTrend,
+  renderAnalyticsSourceBreakdown,
+  renderAnalyticsStudentSummary,
+  renderAnalyticsHistory
+} from './analytics.js';
 
 const TEXT = {
   task: {
@@ -123,7 +163,37 @@ const TEXT = {
     rejectConfirm: '确认要驳回该打卡记录吗？',
     rejectSuccess: '已驳回，请提醒孩子重新补打卡',
     deleteConfirm: '确认要删除这条打卡记录吗？完成的证据也会一并移除。',
-    deleteSuccess: '记录已删除'
+    deleteSuccess: '记录已删除',
+    awardConfirm: (task, student) =>
+      `确认要为「${task || '该任务'}」发放积分给 ${student || '孩子'} 吗？`,
+    awardInProgress: '正在发放积分...',
+    awardSuccess: '任务积分已发放'
+  },
+  points: {
+    loading: '正在加载积分数据...',
+    refreshSuccess: '积分信息已刷新',
+    historyRefreshSuccess: '积分记录已更新',
+    adjustSuccess: '积分调整成功',
+    adjustInProgress: '正在提交调整...',
+    adjustInvalid: '请输入非零的整数积分',
+    selectStudent: '请先选择学生账号'
+  },
+  redeem: {
+    loading: '正在加载积分数据...',
+    refreshSuccess: '兑换信息已刷新',
+    historyRefreshSuccess: '积分记录已更新',
+    redeemSuccess: '兑换成功，已扣除相应积分',
+    redeemInProgress: '正在提交兑换...',
+    selectStudent: '请先选择学生账号',
+    noRewards: '暂无可兑换的奖励，请先在积分商城中新增'
+  },
+  analytics: {
+    loading: '正在获取数据分析看板...',
+    refreshSuccess: '数据分析看板已更新',
+    loadFailed: '数据分析加载失败',
+    noStudent: '请选择学生查看积分明细',
+    studentLoading: '正在刷新学生积分明细...',
+    studentEmpty: '近三个月暂无积分记录'
   }
 };
 
@@ -135,6 +205,9 @@ const elements = {
   navAssignments: qs('#navAssignments'),
   navApprovals: qs('#navApprovals'),
   navRewards: qs('#navRewards'),
+  navRedeem: qs('#navRedeem'),
+  navPoints: qs('#navPoints'),
+  navAnalytics: qs('#navAnalytics'),
   addTaskBtn: qs('#addTaskBtn'),
   addStudentBtn: qs('#addStudentBtn'),
   addAssignmentBtn: qs('#addAssignmentBtn'),
@@ -180,6 +253,54 @@ const elements = {
     formMessage: qs('#rewardFormMessage'),
     cancelBtn: qs('#cancelRewardBtn'),
     closeBtn: qs('#closeRewardModal')
+  },
+  analytics: {
+    message: qs('#analyticsMessage'),
+    summary: qs('#analyticsSummary'),
+    sourceFilters: qs('#analyticsSourceFilters'),
+    rangeTabs: qs('#analyticsRangeTabs'),
+    leaderboard: qs('#analyticsLeaderboard'),
+    leaderboardMeta: qs('#analyticsLeaderboardMeta'),
+    trendChart: qs('#analyticsTrendChart'),
+    trendMeta: qs('#analyticsTrendMeta'),
+    sourceBreakdown: qs('#analyticsSourceBreakdown'),
+    refreshBtn: qs('#analyticsRefreshBtn'),
+    studentSelect: qs('#analyticsStudentSelect'),
+    studentRefreshBtn: qs('#analyticsStudentRefreshBtn'),
+    studentSummary: qs('#analyticsStudentSummary'),
+    studentHistory: qs('#analyticsStudentHistory')
+  },
+  points: {
+    message: qs('#pointsMessage'),
+    refreshBtn: qs('#pointsRefreshBtn'),
+    historyRefreshBtn: qs('#pointsHistoryRefreshBtn'),
+    studentList: qs('#pointsStudentList'),
+    detail: qs('#pointsDetail'),
+    detailContent: qs('#pointsDetailContent'),
+    emptyHint: qs('#pointsEmptyHint'),
+    studentName: qs('#pointsStudentName'),
+    studentLogin: qs('#pointsStudentLogin'),
+    studentUpdated: qs('#pointsStudentUpdated'),
+    studentBalance: qs('#pointsStudentBalance'),
+    adjustForm: qs('#pointsAdjustForm'),
+    adjustMessage: qs('#pointsAdjustMessage'),
+    historyList: qs('#pointsHistoryList')
+  },
+  redeem: {
+    message: qs('#redeemMessage'),
+    refreshBtn: qs('#redeemRefreshBtn'),
+    historyRefreshBtn: qs('#redeemHistoryRefreshBtn'),
+    studentList: qs('#redeemStudentList'),
+    detail: qs('#redeemDetail'),
+    detailContent: qs('#redeemDetailContent'),
+    emptyHint: qs('#redeemEmptyHint'),
+    studentName: qs('#redeemStudentName'),
+    studentLogin: qs('#redeemStudentLogin'),
+    studentUpdated: qs('#redeemStudentUpdated'),
+    studentBalance: qs('#redeemStudentBalance'),
+    form: qs('#redeemForm'),
+    formMessage: qs('#redeemFormMessage'),
+    historyList: qs('#redeemHistoryList')
   },
   approval: {
     message: qs('#approvalMessage'),
@@ -721,6 +842,825 @@ async function submitReward(event) {
   }
 }
 
+function formatPointsDateLabel(value) {
+  if (!value) return '';
+  const normalized = value.includes(' ') ? value.replace(' ', 'T') : value;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate()
+  ).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(
+    date.getMinutes()
+  ).padStart(2, '0')}`;
+}
+
+function setHistoryPlaceholder(listElement) {
+  if (!listElement) return;
+  listElement.innerHTML =
+    '<li class="points-history__item"><p class="points-history__item-note">暂无积分记录。</p></li>';
+}
+
+function resetPointsDetail() {
+  if (!elements.points.detail) return;
+  elements.points.detail.dataset.empty = 'true';
+  if (elements.points.detailContent) {
+    elements.points.detailContent.hidden = true;
+  }
+  if (elements.points.studentName) elements.points.studentName.textContent = '学生姓名';
+  if (elements.points.studentLogin) elements.points.studentLogin.textContent = '';
+  if (elements.points.studentUpdated) elements.points.studentUpdated.textContent = '';
+  if (elements.points.studentBalance) elements.points.studentBalance.textContent = '0';
+  if (elements.points.adjustForm) {
+    elements.points.adjustForm.reset();
+    setMessage(elements.points.adjustMessage, '', '');
+  }
+  setHistoryPlaceholder(elements.points.historyList);
+}
+
+function populatePointsDetail(student) {
+  if (!elements.points.detail) return;
+  if (!student) {
+    resetPointsDetail();
+    return;
+  }
+
+  elements.points.detail.dataset.empty = 'false';
+  if (elements.points.detailContent) {
+    elements.points.detailContent.hidden = false;
+  }
+
+  const displayName = student.displayName || student.loginName;
+  if (elements.points.studentName) elements.points.studentName.textContent = displayName;
+  if (elements.points.studentLogin) {
+    elements.points.studentLogin.textContent = `登录名：${student.loginName}`;
+  }
+  if (elements.points.studentUpdated) {
+    const fallback = student.updatedAt || '';
+    const last = student.lastActivityAt || fallback;
+    elements.points.studentUpdated.textContent = last
+      ? `最近更新：${formatPointsDateLabel(last)}`
+      : '暂无积分记录';
+  }
+  if (elements.points.studentBalance) {
+    elements.points.studentBalance.textContent = student.pointsBalance;
+  }
+  if (elements.points.adjustForm) {
+    elements.points.adjustForm.reset();
+  }
+  setMessage(elements.points.adjustMessage, '', '');
+}
+
+
+async function loadPointsHistory(studentId, { silent = false } = {}) {
+  if (!studentId) {
+    setPointsHistory([]);
+    setHistoryPlaceholder(elements.points.historyList);
+    return;
+  }
+  try {
+    const { entries } = await fetchStudentPointHistory(studentId);
+    setPointsHistory(entries ?? []);
+    renderPointsHistory(elements.points.historyList, getPointsHistory());
+    if (!silent && elements.points.message) {
+      setMessage(elements.points.message, TEXT.points.historyRefreshSuccess, 'success');
+    }
+  } catch (error) {
+    if (elements.points.message) {
+      setMessage(elements.points.message, error.message, 'error');
+    }
+  }
+}
+
+async function loadPointStudents({ silent = false, preserveSelection = false } = {}) {
+  if (!elements.points.studentList) return;
+  try {
+    if (!silent && elements.points.message) {
+      setMessage(elements.points.message, TEXT.points.loading, 'info');
+    }
+    const { students } = await fetchPointStudents();
+    const list = students ?? [];
+    setPointsStudents(list);
+
+    const previousId = preserveSelection ? getActivePointsStudentId() : null;
+    let activeId = previousId;
+    if (!activeId && list.length) {
+      activeId = list[0].id;
+    } else if (activeId && !list.some((student) => student.id === activeId)) {
+      activeId = list.length ? list[0].id : null;
+    }
+
+    setActivePointsStudentId(activeId ?? null);
+    renderPointsStudentList(elements.points.studentList, list, activeId ?? null);
+
+    if (activeId) {
+      const current = list.find((student) => student.id === activeId);
+      populatePointsDetail(current);
+      await loadPointsHistory(activeId, { silent: true });
+    } else {
+      resetPointsDetail();
+      setPointsHistory([]);
+      setHistoryPlaceholder(elements.points.historyList);
+    }
+
+    if (!silent && elements.points.message) {
+      setMessage(elements.points.message, TEXT.points.refreshSuccess, 'success');
+    }
+  } catch (error) {
+    if (elements.points.message) {
+      setMessage(elements.points.message, error.message, 'error');
+    }
+    resetPointsDetail();
+    setPointsStudents([]);
+    setPointsHistory([]);
+    setActivePointsStudentId(null);
+    setHistoryPlaceholder(elements.points.historyList);
+  }
+}
+
+function handlePointsStudentClick(event) {
+  const card = event.target.closest('.points-student');
+  if (!card) return;
+  const studentId = Number.parseInt(card.dataset.studentId, 10);
+  if (Number.isNaN(studentId) || studentId === getActivePointsStudentId()) {
+    return;
+  }
+  setActivePointsStudentId(studentId);
+  renderPointsStudentList(elements.points.studentList, getPointsStudents(), studentId);
+  const current = getPointsStudents().find((student) => student.id === studentId);
+  populatePointsDetail(current);
+  loadPointsHistory(studentId, { silent: true });
+}
+
+async function submitPointsAdjust(event) {
+  event.preventDefault();
+  if (!elements.points.adjustForm) return;
+  const studentId = getActivePointsStudentId();
+  if (!studentId) {
+    setMessage(elements.points.adjustMessage, TEXT.points.selectStudent, 'error');
+    return;
+  }
+
+  const formData = new FormData(elements.points.adjustForm);
+  const deltaValue = Number.parseInt(formData.get('delta'), 10);
+  const note = formData.get('note')?.trim();
+
+  if (!Number.isInteger(deltaValue) || deltaValue === 0) {
+    setMessage(elements.points.adjustMessage, TEXT.points.adjustInvalid, 'error');
+    return;
+  }
+
+  try {
+    disableForm(elements.points.adjustForm, true);
+    setMessage(elements.points.adjustMessage, TEXT.points.adjustInProgress, 'info');
+    const payload = note ? { delta: deltaValue, note } : { delta: deltaValue };
+    await adjustStudentPoints(studentId, payload);
+    setMessage(elements.points.adjustMessage, TEXT.points.adjustSuccess, 'success');
+    elements.points.adjustForm.reset();
+    await loadPointStudents({ silent: true, preserveSelection: true });
+  } catch (error) {
+    setMessage(elements.points.adjustMessage, error.message, 'error');
+  } finally {
+    disableForm(elements.points.adjustForm, false);
+  }
+}
+
+function resetRedeemDetail() {
+  if (!elements.redeem.detail) return;
+  elements.redeem.detail.dataset.empty = 'true';
+  if (elements.redeem.detailContent) {
+    elements.redeem.detailContent.hidden = true;
+  }
+  if (elements.redeem.studentName) elements.redeem.studentName.textContent = '学生姓名';
+  if (elements.redeem.studentLogin) elements.redeem.studentLogin.textContent = '';
+  if (elements.redeem.studentUpdated) elements.redeem.studentUpdated.textContent = '';
+  if (elements.redeem.studentBalance) elements.redeem.studentBalance.textContent = '0';
+  if (elements.redeem.form) {
+    elements.redeem.form.reset();
+    setMessage(elements.redeem.formMessage, '', '');
+  }
+  setHistoryPlaceholder(elements.redeem.historyList);
+  populateRedeemRewardsSelect();
+}
+
+function populateRedeemDetail(student) {
+  if (!elements.redeem.detail) return;
+  if (!student) {
+    resetRedeemDetail();
+    return;
+  }
+
+  elements.redeem.detail.dataset.empty = 'false';
+  if (elements.redeem.detailContent) {
+    elements.redeem.detailContent.hidden = false;
+  }
+
+  const displayName = student.displayName || student.loginName;
+  if (elements.redeem.studentName) elements.redeem.studentName.textContent = displayName;
+  if (elements.redeem.studentLogin) {
+    elements.redeem.studentLogin.textContent = `登录名：${student.loginName}`;
+  }
+  if (elements.redeem.studentUpdated) {
+    const fallback = student.updatedAt || '';
+    const last = student.lastActivityAt || fallback;
+    elements.redeem.studentUpdated.textContent = last
+      ? `最近更新：${formatPointsDateLabel(last)}`
+      : '暂无积分记录';
+  }
+  if (elements.redeem.studentBalance) {
+    elements.redeem.studentBalance.textContent = student.pointsBalance;
+  }
+  if (elements.redeem.form) {
+    elements.redeem.form.reset();
+    setMessage(elements.redeem.formMessage, '', '');
+  }
+  populateRedeemRewardsSelect();
+}
+
+function populateRedeemRewardsSelect() {
+  if (!elements.redeem.form) return;
+  const select = elements.redeem.form.elements?.rewardId;
+  if (!select) return;
+
+  const rewards = getRewards() || [];
+  const activeRewards = rewards.filter(
+    (reward) => reward.isActive && (reward.stock === null || reward.stock > 0)
+  );
+  const previousValue = select.value;
+
+  select.innerHTML =
+    '<option value="">请选择奖励</option>' +
+    activeRewards
+      .map((reward) => {
+        const stockLabel =
+          reward.stock === null || reward.stock === undefined
+            ? '不限量'
+            : `剩余 ${reward.stock}`;
+        return `<option value="${reward.id}">${reward.title} · ${reward.pointsCost} 积分 · ${stockLabel}</option>`;
+      })
+      .join('');
+
+  if (!activeRewards.length) {
+    select.disabled = true;
+  } else {
+    select.disabled = false;
+    if (previousValue && activeRewards.some((reward) => String(reward.id) === previousValue)) {
+      select.value = previousValue;
+    }
+  }
+}
+
+async function refreshRedeemRewards({ silent = false } = {}) {
+  if (!elements.redeem.form) return;
+  try {
+    const { rewards } = await fetchRewards();
+    setRewards(rewards ?? []);
+    populateRedeemRewardsSelect();
+  } catch (error) {
+    populateRedeemRewardsSelect();
+    if (!silent && elements.redeem.message) {
+      setMessage(elements.redeem.message, error.message, 'error');
+    }
+  }
+}
+
+async function loadRedeemHistory(studentId, { silent = false } = {}) {
+  if (!studentId) {
+    setRedeemHistory([]);
+    setHistoryPlaceholder(elements.redeem.historyList);
+    return;
+  }
+  try {
+    const { entries } = await fetchStudentPointHistory(studentId);
+    setRedeemHistory(entries ?? []);
+    renderPointsHistory(elements.redeem.historyList, getRedeemHistory());
+    if (!silent && elements.redeem.message) {
+      setMessage(elements.redeem.message, TEXT.redeem.historyRefreshSuccess, 'success');
+    }
+  } catch (error) {
+    if (elements.redeem.message) {
+      setMessage(elements.redeem.message, error.message, 'error');
+    }
+  }
+}
+
+async function loadRedeemStudents({ silent = false, preserveSelection = false } = {}) {
+  if (!elements.redeem.studentList) return;
+  try {
+    if (!silent && elements.redeem.message) {
+      setMessage(elements.redeem.message, TEXT.redeem.loading, 'info');
+    }
+
+    const { students } = await fetchPointStudents();
+    const list = students ?? [];
+    setRedeemStudents(list);
+
+    const previousId = preserveSelection ? getActiveRedeemStudentId() : null;
+    let activeId = previousId;
+    if (!activeId && list.length) {
+      activeId = list[0].id;
+    } else if (activeId && !list.some((student) => student.id === activeId)) {
+      activeId = list.length ? list[0].id : null;
+    }
+
+    setActiveRedeemStudentId(activeId ?? null);
+    renderPointsStudentList(elements.redeem.studentList, list, activeId ?? null);
+
+    await refreshRedeemRewards({ silent: true });
+
+    if (activeId) {
+      const current = list.find((student) => student.id === activeId);
+      populateRedeemDetail(current);
+      await loadRedeemHistory(activeId, { silent: true });
+    } else {
+      resetRedeemDetail();
+      setRedeemHistory([]);
+      setHistoryPlaceholder(elements.redeem.historyList);
+    }
+
+    if (!silent && elements.redeem.message) {
+      setMessage(elements.redeem.message, TEXT.redeem.refreshSuccess, 'success');
+    }
+  } catch (error) {
+    if (elements.redeem.message) {
+      setMessage(elements.redeem.message, error.message, 'error');
+    }
+    resetRedeemDetail();
+    setRedeemStudents([]);
+    setRedeemHistory([]);
+    setActiveRedeemStudentId(null);
+    setHistoryPlaceholder(elements.redeem.historyList);
+  }
+}
+
+function handleRedeemStudentClick(event) {
+  const card = event.target.closest('.points-student');
+  if (!card) return;
+  const studentId = Number.parseInt(card.dataset.studentId, 10);
+  if (Number.isNaN(studentId) || studentId === getActiveRedeemStudentId()) {
+    return;
+  }
+  setActiveRedeemStudentId(studentId);
+  renderPointsStudentList(elements.redeem.studentList, getRedeemStudents(), studentId);
+  const current = getRedeemStudents().find((student) => student.id === studentId);
+  populateRedeemDetail(current);
+  loadRedeemHistory(studentId, { silent: true });
+}
+
+async function submitRedeemForm(event) {
+  event.preventDefault();
+  if (!elements.redeem.form) return;
+
+  const studentId = getActiveRedeemStudentId();
+  if (!studentId) {
+    setMessage(elements.redeem.formMessage, TEXT.redeem.selectStudent, 'error');
+    return;
+  }
+
+  const formData = new FormData(elements.redeem.form);
+  const rewardId = Number.parseInt(formData.get('rewardId'), 10);
+  if (!Number.isInteger(rewardId)) {
+    setMessage(elements.redeem.formMessage, TEXT.redeem.noRewards, 'error');
+    return;
+  }
+
+  const quantityValue = Number.parseInt(formData.get('quantity'), 10);
+  const quantity = Number.isInteger(quantityValue) && quantityValue > 0 ? quantityValue : 1;
+  const note = formData.get('note')?.trim();
+
+  try {
+    disableForm(elements.redeem.form, true);
+    setMessage(elements.redeem.formMessage, TEXT.redeem.redeemInProgress, 'info');
+    await redeemStudentReward(studentId, {
+      rewardId,
+      quantity,
+      ...(note ? { note } : {})
+    });
+    setMessage(elements.redeem.formMessage, TEXT.redeem.redeemSuccess, 'success');
+    elements.redeem.form.reset();
+    await loadRedeemStudents({ silent: true, preserveSelection: true });
+  } catch (error) {
+    setMessage(elements.redeem.formMessage, error.message, 'error');
+  } finally {
+    disableForm(elements.redeem.form, false);
+  }
+}
+
+// ----- Analytics dashboard -----
+
+const ANALYTICS_RANGES = ['today', 'week', 'month'];
+const ANALYTICS_RANGE_LABELS = {
+  today: '今日',
+  week: '近 7 日',
+  month: '近 30 日'
+};
+
+function renderAnalyticsSkeleton() {
+  console.debug('[analytics] render skeleton');
+  if (elements.analytics.summary) {
+    elements.analytics.summary.innerHTML = [
+      {
+        title: '累计发放',
+        note: '等待载入…'
+      },
+      {
+        title: '手动调整净额',
+        note: '等待载入…'
+      },
+      {
+        title: '兑换消耗',
+        note: '等待载入…'
+      },
+      {
+        title: '活跃学生',
+        note: '等待载入…'
+      },
+      {
+        title: '日均发放',
+        note: '等待载入…'
+      }
+    ]
+      .map(
+        (item) => `
+      <article class="analytics-summary__card analytics-summary__card--loading">
+        <span class="analytics-summary__title">${item.title}</span>
+        <span class="analytics-summary__value">--</span>
+        <span class="analytics-summary__note">${item.note}</span>
+      </article>
+    `
+      )
+      .join('');
+  }
+  if (elements.analytics.leaderboard) {
+    elements.analytics.leaderboard.innerHTML =
+      '<p class="analytics-leaderboard__empty">正在准备排行榜，请稍候…</p>';
+  }
+  if (elements.analytics.trendChart) {
+    elements.analytics.trendChart.innerHTML =
+      '<p class="analytics-leaderboard__empty">正在绘制积分趋势…</p>';
+  }
+  if (elements.analytics.sourceBreakdown) {
+    elements.analytics.sourceBreakdown.innerHTML =
+      '<p class="analytics-leaderboard__empty">正在统计积分来源…</p>';
+  }
+  if (elements.analytics.studentSummary) {
+    elements.analytics.studentSummary.innerHTML =
+      '<p class="analytics-history__empty">请选择学生查看积分流水。</p>';
+  }
+  if (elements.analytics.studentHistory) {
+    elements.analytics.studentHistory.innerHTML =
+      '<li class="analytics-history__empty">数据载入中…</li>';
+  }
+}
+
+function renderAnalyticsErrorState(message) {
+  console.debug('[analytics] render error state', message);
+  const detail = message || '暂时无法加载数据分析内容，请稍后重试。';
+  if (elements.analytics.summary) {
+    elements.analytics.summary.innerHTML = `
+      <article class="analytics-summary__card analytics-summary__card--error">
+        <span class="analytics-summary__title">数据分析</span>
+        <span class="analytics-summary__value">--</span>
+        <span class="analytics-summary__note">${detail}</span>
+      </article>
+    `;
+  }
+  if (elements.analytics.leaderboard) {
+    elements.analytics.leaderboard.innerHTML = `
+      <p class="analytics-leaderboard__empty">${detail}</p>
+    `;
+  }
+  if (elements.analytics.trendChart) {
+    elements.analytics.trendChart.innerHTML = `
+      <p class="analytics-leaderboard__empty">${detail}</p>
+    `;
+  }
+  if (elements.analytics.sourceBreakdown) {
+    elements.analytics.sourceBreakdown.innerHTML = `
+      <p class="analytics-leaderboard__empty">${detail}</p>
+    `;
+  }
+  if (elements.analytics.studentSummary) {
+    elements.analytics.studentSummary.innerHTML = `
+      <article class="analytics-summary__card analytics-summary__card--error">
+        <span class="analytics-summary__title">学生明细</span>
+        <span class="analytics-summary__note">${detail}</span>
+      </article>
+    `;
+  }
+  if (elements.analytics.studentHistory) {
+    elements.analytics.studentHistory.innerHTML = `
+      <li class="analytics-history__empty">${detail}</li>
+    `;
+  }
+}
+
+function ensureAnalyticsFilters() {
+  const validKeys = SOURCE_GROUPS.map((group) => group.key);
+  const current = getAnalyticsFilters();
+  const groups =
+    current?.groups?.filter((group) => validKeys.includes(group)) ?? [...validKeys];
+  const normalizedGroups = groups.length > 0 ? groups : [...validKeys];
+  const sources = deriveSourcesFromGroups(normalizedGroups);
+  const next = { groups: normalizedGroups, sources };
+  setAnalyticsFilters(next);
+  return next;
+}
+
+function ensureAnalyticsRange() {
+  const current = getAnalyticsRange();
+  if (ANALYTICS_RANGES.includes(current)) {
+    return current;
+  }
+  setAnalyticsRange('today');
+  return 'today';
+}
+
+function renderAnalyticsFilters() {
+  if (!elements.analytics.sourceFilters) return;
+  const filters = ensureAnalyticsFilters();
+  elements.analytics.sourceFilters.innerHTML = SOURCE_GROUPS.map((group) => {
+    const active = filters.groups.includes(group.key);
+    return `
+      <label class="chip-checkbox ${active ? 'chip-checkbox--active' : ''}">
+        <input type="checkbox" value="${group.key}" ${active ? 'checked' : ''} />
+        <span>${group.label}</span>
+      </label>
+    `;
+  }).join('');
+}
+
+function updateAnalyticsRangeTabs() {
+  if (!elements.analytics.rangeTabs) return;
+  const current = ensureAnalyticsRange();
+  qsa('[data-range]', elements.analytics.rangeTabs).forEach((button) => {
+    const isActive = button.dataset.range === current;
+    button.classList.toggle('chip-button--active', isActive);
+    button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+}
+
+function updateAnalyticsStudentOptions(students, activeId) {
+  if (!elements.analytics.studentSelect) return;
+  if (!Array.isArray(students) || students.length === 0) {
+    elements.analytics.studentSelect.innerHTML = '<option value="">暂无学生</option>';
+    return;
+  }
+  const placeholder = '<option value="">请选择学生</option>';
+  const options = students
+    .map((student) => {
+      const label = student.displayName ?? student.loginName ?? `学生 ${student.id}`;
+      const selected = Number(student.id) === Number(activeId) ? 'selected' : '';
+      return `<option value="${student.id}" ${selected}>${label}</option>`;
+    })
+    .join('');
+  elements.analytics.studentSelect.innerHTML = placeholder + options;
+  if (activeId) {
+    elements.analytics.studentSelect.value = String(activeId);
+  }
+}
+
+function renderAnalyticsStudentSection(payload) {
+  const filters = ensureAnalyticsFilters();
+  const sources = filters.sources;
+  if (!payload) {
+    renderAnalyticsStudentSummary(elements.analytics.studentSummary, null, { sources });
+    if (elements.analytics.studentHistory) {
+      elements.analytics.studentHistory.innerHTML = `<li class="analytics-history__empty">${TEXT.analytics.noStudent}</li>`;
+    }
+    return;
+  }
+  renderAnalyticsStudentSummary(elements.analytics.studentSummary, payload, { sources });
+  renderAnalyticsHistory(elements.analytics.studentHistory, payload.entries ?? [], {
+    limit: 60
+  });
+}
+
+function renderAnalyticsView() {
+  const dashboard = getAnalyticsDashboard();
+  console.debug('[analytics] render view with dashboard', dashboard);
+  if (!dashboard) return;
+
+  const filters = ensureAnalyticsFilters();
+  const sources = filters.sources;
+
+  renderAnalyticsFilters();
+  updateAnalyticsRangeTabs();
+
+  renderAnalyticsSummary(elements.analytics.summary, dashboard.summaryCards, dashboard.metadata);
+
+  const rangeKey = ensureAnalyticsRange();
+  const rangeLabel = ANALYTICS_RANGE_LABELS[rangeKey] ?? '最近';
+  const rangeData = dashboard.ranges?.[rangeKey] ?? { leaderboard: [] };
+  const leaderboardSummary = renderAnalyticsLeaderboard(
+    elements.analytics.leaderboard,
+    rangeData.leaderboard ?? [],
+    { sources }
+  );
+  if (elements.analytics.leaderboardMeta) {
+    elements.analytics.leaderboardMeta.textContent = `${rangeLabel} · 学生 ${leaderboardSummary.count} 人 · 净积分 ${leaderboardSummary.formattedTotal}`;
+  }
+
+  const trendSummary = renderAnalyticsTrend(
+    elements.analytics.trendChart,
+    dashboard.trend?.daily ?? [],
+    { sources }
+  );
+  if (elements.analytics.trendMeta) {
+    elements.analytics.trendMeta.textContent = `最近净积分 ${trendSummary.formattedLast} · 峰值 ${trendSummary.formattedPeakPositive}/${trendSummary.formattedPeakNegative}`;
+  }
+
+  renderAnalyticsSourceBreakdown(elements.analytics.sourceBreakdown, dashboard.sourceBreakdown, {
+    sources
+  });
+
+  const selectedId = getAnalyticsStudentId();
+  updateAnalyticsStudentOptions(dashboard.students ?? [], selectedId);
+
+  const cachedHistory = getAnalyticsStudentHistory();
+  if (cachedHistory && cachedHistory.studentId === selectedId) {
+    renderAnalyticsStudentSection(cachedHistory.data);
+  } else if (selectedId) {
+    renderAnalyticsStudentSection(null);
+  } else {
+    renderAnalyticsStudentSection(null);
+  }
+}
+
+async function loadAnalytics({ silent = false } = {}) {
+  if (!elements.analytics.summary) return;
+  ensureAnalyticsFilters();
+  renderAnalyticsFilters();
+  ensureAnalyticsRange();
+  updateAnalyticsRangeTabs();
+  if (!silent) {
+    renderAnalyticsSkeleton();
+    if (elements.analytics.message) {
+      setMessage(elements.analytics.message, TEXT.analytics.loading, 'info');
+    }
+  }
+  try {
+    const dashboard = await fetchAnalyticsDashboard();
+    console.debug('[analytics] dashboard payload', dashboard);
+    if (!dashboard) {
+      renderAnalyticsErrorState('未收到数据，请稍后再试。');
+      if (elements.analytics.message) {
+        setMessage(elements.analytics.message, '未收到数据，请稍后再试。', 'error');
+      }
+      return;
+    }
+    setAnalyticsDashboard(dashboard);
+    ensureAnalyticsRange();
+
+    let activeStudentId = getAnalyticsStudentId();
+    if (!activeStudentId && dashboard.students?.length) {
+      activeStudentId = dashboard.students[0].id;
+      setAnalyticsStudentId(activeStudentId);
+    } else if (
+      activeStudentId &&
+      Array.isArray(dashboard.students) &&
+      !dashboard.students.some((student) => student.id === activeStudentId)
+    ) {
+      activeStudentId = dashboard.students[0]?.id ?? null;
+      setAnalyticsStudentId(activeStudentId);
+    }
+
+    setAnalyticsStudentHistory(null);
+    renderAnalyticsView();
+
+    if (activeStudentId) {
+      await loadAnalyticsStudentHistory({ silent: true, force: true });
+    } else {
+      renderAnalyticsStudentSection(null);
+    }
+
+    if (!silent && elements.analytics.message) {
+      setMessage(elements.analytics.message, TEXT.analytics.refreshSuccess, 'success');
+    }
+  } catch (error) {
+    const detail = error?.detail || error?.message || TEXT.analytics.loadFailed || '加载失败';
+    if (elements.analytics.message) {
+      setMessage(elements.analytics.message, detail, 'error');
+    }
+    if (!silent) {
+      renderAnalyticsErrorState(detail);
+    }
+    console.error('[analytics] load failed', error);
+  }
+}
+
+async function loadAnalyticsStudentHistory({ silent = false, force = false } = {}) {
+  const studentId = getAnalyticsStudentId();
+  if (!studentId) {
+    setAnalyticsStudentHistory(null);
+    renderAnalyticsStudentSection(null);
+    if (!silent && elements.analytics.message) {
+      setMessage(elements.analytics.message, TEXT.analytics.noStudent, 'info');
+    }
+    return;
+  }
+
+  const cached = getAnalyticsStudentHistory();
+  if (!force && cached && cached.studentId === studentId) {
+    renderAnalyticsStudentSection(cached.data);
+    return;
+  }
+
+  try {
+    if (!silent && elements.analytics.message) {
+      setMessage(elements.analytics.message, TEXT.analytics.studentLoading, 'info');
+    }
+    const history = await fetchAnalyticsStudentHistory(studentId);
+    setAnalyticsStudentHistory({ studentId, data: history });
+    renderAnalyticsStudentSection(history);
+    if (!silent && elements.analytics.message) {
+      setMessage(elements.analytics.message, '', '');
+    }
+  } catch (error) {
+    if (elements.analytics.message) {
+      setMessage(elements.analytics.message, error.message, 'error');
+    }
+  }
+}
+
+function handleAnalyticsRangeClick(event) {
+  const button = event.target.closest('[data-range]');
+  if (!button || !elements.analytics.rangeTabs?.contains(button)) return;
+  const range = button.dataset.range;
+  if (!range || range === getAnalyticsRange()) {
+    return;
+  }
+  setAnalyticsRange(range);
+  updateAnalyticsRangeTabs();
+  renderAnalyticsView();
+  const cached = getAnalyticsStudentHistory();
+  if (cached && cached.studentId === getAnalyticsStudentId()) {
+    renderAnalyticsStudentSection(cached.data);
+  }
+}
+
+function handleAnalyticsFilterChange(event) {
+  const input = event.target;
+  if (!input || input.type !== 'checkbox' || !elements.analytics.sourceFilters?.contains(input)) {
+    return;
+  }
+
+  const filters = ensureAnalyticsFilters();
+  const activeGroups = new Set(filters.groups);
+  const groupKey = input.value;
+
+  if (input.checked) {
+    activeGroups.add(groupKey);
+  } else {
+    activeGroups.delete(groupKey);
+    if (activeGroups.size === 0) {
+      activeGroups.add(groupKey);
+      input.checked = true;
+      return;
+    }
+  }
+
+  const groups = Array.from(activeGroups);
+  const sources = deriveSourcesFromGroups(groups);
+  setAnalyticsFilters({ groups, sources });
+  renderAnalyticsFilters();
+  renderAnalyticsView();
+
+  const cached = getAnalyticsStudentHistory();
+  if (cached && cached.studentId === getAnalyticsStudentId()) {
+    renderAnalyticsStudentSection(cached.data);
+  }
+}
+
+function handleAnalyticsStudentChange(event) {
+  const value = event.target.value;
+  if (!value) {
+    setAnalyticsStudentId(null);
+    setAnalyticsStudentHistory(null);
+    renderAnalyticsStudentSection(null);
+    return;
+  }
+  const studentId = Number.parseInt(value, 10);
+  if (!Number.isInteger(studentId)) {
+    setAnalyticsStudentId(null);
+    setAnalyticsStudentHistory(null);
+    renderAnalyticsStudentSection(null);
+    return;
+  }
+  setAnalyticsStudentId(studentId);
+  setAnalyticsStudentHistory(null);
+  loadAnalyticsStudentHistory({ silent: false, force: true });
+}
+
+function handleAnalyticsRefresh() {
+  loadAnalytics({ silent: false });
+}
+
+function handleAnalyticsStudentRefresh() {
+  loadAnalyticsStudentHistory({ silent: false, force: true });
+}
+
 // ----- Approval helpers -----
 
 function formatApprovalDateLabel(value) {
@@ -747,7 +1687,8 @@ function renderApprovals() {
   renderApprovalList(elements.approval.list, entries, {
     onApprove: handleApproveEntry,
     onReject: handleRejectEntry,
-    onDelete: handleDeleteEntry
+    onDelete: handleDeleteEntry,
+    onAward: handleAwardTask
   });
   if (elements.approval.message) {
     setMessage(elements.approval.message, '', '');
@@ -844,6 +1785,50 @@ async function handleDeleteEntry(entryId) {
   }
 }
 
+async function handleAwardTask(payload, button) {
+  const taskId = Number.parseInt(payload?.taskId, 10);
+  const studentId = Number.parseInt(payload?.studentId, 10);
+  const entryDate = payload?.entryDate;
+
+  if (!Number.isInteger(taskId) || !Number.isInteger(studentId) || !entryDate) {
+    return;
+  }
+
+  const taskTitle = payload?.taskTitle || '';
+  const studentName = payload?.studentName || '';
+  const confirmMessage =
+    typeof TEXT.approval.awardConfirm === 'function'
+      ? TEXT.approval.awardConfirm(taskTitle, studentName)
+      : TEXT.approval.awardConfirm;
+
+  if (!window.confirm(confirmMessage)) {
+    return;
+  }
+
+  if (button) {
+    button.disabled = true;
+  }
+
+  try {
+    if (elements.approval.message) {
+      setMessage(elements.approval.message, TEXT.approval.awardInProgress, 'info');
+    }
+    await awardTaskPoints(taskId, { studentId, entryDate });
+    if (elements.approval.message) {
+      setMessage(elements.approval.message, TEXT.approval.awardSuccess, 'success');
+    }
+    await loadApprovals({ silent: true });
+  } catch (error) {
+    if (elements.approval.message) {
+      setMessage(elements.approval.message, error.message, 'error');
+    }
+  } finally {
+    if (button) {
+      button.disabled = false;
+    }
+  }
+}
+
 
 // ----- Navigation & lifecycle -----
 
@@ -862,6 +1847,12 @@ async function changeView(view) {
     await loadApprovals({ silent: true });
   } else if (view === 'rewards') {
     await loadRewards({ silent: true });
+  } else if (view === 'redeem') {
+    await loadRedeemStudents({ silent: true });
+  } else if (view === 'points') {
+    await loadPointStudents({ silent: true });
+  } else if (view === 'analytics') {
+    await loadAnalytics({ silent: false });
   }
 }
 
@@ -889,6 +1880,15 @@ function setupNavigation() {
   }
   if (elements.navRewards) {
     elements.navRewards.addEventListener('click', () => changeView('rewards'));
+  }
+  if (elements.navRedeem) {
+    elements.navRedeem.addEventListener('click', () => changeView('redeem'));
+  }
+  if (elements.navPoints) {
+    elements.navPoints.addEventListener('click', () => changeView('points'));
+  }
+  if (elements.navAnalytics) {
+    elements.navAnalytics.addEventListener('click', () => changeView('analytics'));
   }
 }
 
@@ -997,6 +1997,12 @@ async function bootstrap() {
       await loadApprovals({ silent: true });
     } else if (initialView === 'rewards') {
       await loadRewards({ silent: true });
+    } else if (initialView === 'redeem') {
+      await loadRedeemStudents({ silent: true });
+    } else if (initialView === 'points') {
+      await loadPointStudents({ silent: true });
+    } else if (initialView === 'analytics') {
+      await loadAnalytics({ silent: false });
     } else {
       await loadTasks();
     }
@@ -1029,6 +2035,61 @@ function main() {
   }
   if (elements.reward.form) {
     elements.reward.form.addEventListener('submit', submitReward);
+  }
+  if (elements.points.studentList) {
+    elements.points.studentList.addEventListener('click', handlePointsStudentClick);
+  }
+  if (elements.points.adjustForm) {
+    elements.points.adjustForm.addEventListener('submit', submitPointsAdjust);
+  }
+  if (elements.points.refreshBtn) {
+    elements.points.refreshBtn.addEventListener('click', () => loadPointStudents({ silent: false }));
+  }
+  if (elements.points.historyRefreshBtn) {
+    elements.points.historyRefreshBtn.addEventListener('click', () => {
+      const studentId = getActivePointsStudentId();
+      if (!studentId) {
+        setMessage(elements.points.message, TEXT.points.selectStudent, 'info');
+        return;
+      }
+      loadPointsHistory(studentId, { silent: false });
+    });
+  }
+  if (elements.redeem.studentList) {
+    elements.redeem.studentList.addEventListener('click', handleRedeemStudentClick);
+  }
+  if (elements.redeem.form) {
+    elements.redeem.form.addEventListener('submit', submitRedeemForm);
+  }
+  if (elements.redeem.refreshBtn) {
+    elements.redeem.refreshBtn.addEventListener('click', () =>
+      loadRedeemStudents({ silent: false })
+    );
+  }
+  if (elements.redeem.historyRefreshBtn) {
+    elements.redeem.historyRefreshBtn.addEventListener('click', () => {
+      const studentId = getActiveRedeemStudentId();
+      if (!studentId) {
+        setMessage(elements.redeem.message, TEXT.redeem.selectStudent, 'info');
+        return;
+      }
+      loadRedeemHistory(studentId, { silent: false });
+    });
+  }
+  if (elements.analytics.rangeTabs) {
+    elements.analytics.rangeTabs.addEventListener('click', handleAnalyticsRangeClick);
+  }
+  if (elements.analytics.sourceFilters) {
+    elements.analytics.sourceFilters.addEventListener('change', handleAnalyticsFilterChange);
+  }
+  if (elements.analytics.refreshBtn) {
+    elements.analytics.refreshBtn.addEventListener('click', handleAnalyticsRefresh);
+  }
+  if (elements.analytics.studentSelect) {
+    elements.analytics.studentSelect.addEventListener('change', handleAnalyticsStudentChange);
+  }
+  if (elements.analytics.studentRefreshBtn) {
+    elements.analytics.studentRefreshBtn.addEventListener('click', handleAnalyticsStudentRefresh);
   }
   if (elements.logoutButton) {
     elements.logoutButton.addEventListener('click', handleLogout);
