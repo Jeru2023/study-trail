@@ -30,6 +30,9 @@
           <button class="nav-item" data-view="assignments" id="navAssignments">
             <span>任务关联</span>
           </button>
+          <button class="nav-item" data-view="approvals" id="navApprovals">
+            <span>打卡审批</span>
+          </button>
           <button class="nav-item" disabled>学习数据</button>
           <button class="nav-item" disabled>成长档案</button>
           <button class="nav-item" disabled>消息中心</button>
@@ -80,16 +83,28 @@
             <section id="studentList" class="card"></section>
           </section>
 
-          <section class="view" data-view="assignments" hidden>
+                    <section class="view" data-view="assignments" hidden>
             <div class="page-header">
               <div>
-                <h1>任务关联</h1>
-                <p class="page-subtitle">为每位学生安排个性化的打卡任务组合。</p>
+                <h1>任务分配</h1>
+                <p class="page-subtitle">为每位孩子安排最合适的学习任务。</p>
               </div>
-              <button type="button" class="primary-button" id="addAssignmentBtn">添加关联</button>
+              <button type="button" class="primary-button" id="addAssignmentBtn">新增分配</button>
             </div>
             <p class="page-message" id="assignmentMessage"></p>
             <section id="assignmentList" class="card"></section>
+          </section>
+
+                    <section class="view" data-view="approvals" hidden>
+            <div class="page-header">
+              <div>
+                <h1>打卡审批</h1>
+                <p class="page-subtitle">查看孩子今日的打卡记录 <span id="approvalDateLabel"></span></p>
+              </div>
+              <button type="button" class="primary-button" id="refreshApprovalsBtn">刷新</button>
+            </div>
+            <p class="page-message" id="approvalMessage"></p>
+            <section id="approvalList" class="card approval-list"></section>
           </section>
         </main>
       </div>
@@ -202,3 +217,10 @@
     <script type="module" src="/js/admin/main.js"></script>
   </body>
 </html>
+
+
+
+
+
+
+

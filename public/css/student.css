@@ -587,3 +587,13 @@ a:hover {
     padding: 1.25rem;
   }
 }
+
+.subtask-review-warning {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 0.9rem;
+}
+

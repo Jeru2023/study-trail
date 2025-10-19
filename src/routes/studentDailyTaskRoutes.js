@@ -62,6 +62,11 @@ function handleUploadErrors(middleware) {
         return;
       }
 
+      if (error.message === 'STUDENT_SESSION_REQUIRED') {
+        res.status(401).json({ message: '登录已失效，请重新登录后再试' });
+        return;
+      }
+
       if (error.code === 'LIMIT_FILE_SIZE') {
         res.status(400).json({
           message: `上传文件过大，单个文件不超过 ${config.uploads.maxFileSizeMb}MB`
@@ -79,6 +84,8 @@ function handleUploadErrors(middleware) {
         return;
       }
 
+      // eslint-disable-next-line no-console
+      console.error('[upload] failed to process proofs', error);
       res.status(400).json({ message: '上传失败', detail: error.message });
     });
   };

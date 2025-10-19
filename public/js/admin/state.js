@@ -1,6 +1,8 @@
 const state = {
   user: null,
   activeView: 'tasks',
+  approvals: [],
+  approvalsDate: null,
   tasks: [],
   students: [],
   assignments: [],
@@ -49,6 +51,22 @@ export function getAssignments() {
   return state.assignments;
 }
 
+export function setApprovals(entries) {
+  state.approvals = entries;
+}
+
+export function getApprovals() {
+  return state.approvals;
+}
+
+export function setApprovalsDate(date) {
+  state.approvalsDate = date;
+}
+
+export function getApprovalsDate() {
+  return state.approvalsDate;
+}
+
 export function setEditingTaskId(taskId) {
   state.editingTaskId = taskId;
 }
@@ -72,3 +90,5 @@ export function setEditingAssignmentStudentId(studentId) {
 export function getEditingAssignmentStudentId() {
   return state.editingAssignmentStudentId;
 }
+
+

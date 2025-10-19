@@ -122,3 +122,20 @@ export function completeStudentSubtask(entryId, formData) {
     data: formData
   });
 }
+
+export function fetchApprovalEntries(date) {
+  const search = date ? `?date=${encodeURIComponent(date)}` : '';
+  return request(`/api/approvals${search}`);
+}
+
+export function approveStudentEntry(entryId, payload) {
+  return request(`/api/approvals/entries/${entryId}/approve`, { method: 'POST', data: payload });
+}
+
+export function rejectStudentEntry(entryId, payload) {
+  return request(`/api/approvals/entries/${entryId}/reject`, { method: 'POST', data: payload });
+}
+
+export function deleteApprovalEntry(entryId) {
+  return request(`/api/approvals/entries/${entryId}`, { method: 'DELETE' });
+}

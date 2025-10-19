@@ -12,6 +12,12 @@ const MAX_PROOFS = 6;
 const MAX_FILE_SIZE_MB = 30;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
+const REVIEW_STATUS_TEXT = {
+  pending: '等待家长审批',
+  approved: '家长已通过',
+  rejected: '被驳回，请重新完成该任务'
+};
+
 const state = {
   date: new Date().toISOString().slice(0, 10),
   tasks: [],
@@ -40,6 +46,26 @@ const elements = {
   cancelCompleteBtn: qs('#cancelCompleteBtn'),
   closeCompleteModalBtn: qs('#closeCompleteModal')
 };
+
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value).replace(/[&<>'"]/g, (char) => {
+    switch (char) {
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      case "'":
+        return '&#39;';
+      default:
+        return char;
+    }
+  });
+}
 
 function formatDateLabel(dateString) {
   const date = new Date(`${dateString}T00:00:00`);
@@ -79,6 +105,10 @@ function formatDuration(seconds) {
     return `${hours} 小时`;
   }
   return `${minutes} 分钟`;
+}
+
+function formatReviewStatus(status) {
+  return REVIEW_STATUS_TEXT[status] || REVIEW_STATUS_TEXT.pending;
 }
 
 function showPageMessage(text, type = '') {
@@ -163,13 +193,24 @@ function renderSubtask(entry) {
 
   const meta = document.createElement('div');
   meta.className = 'subtask-meta';
+  const reviewStatus = entry.reviewStatus || 'pending';
   meta.appendChild(createMetaItem('开始时间', formatTime(entry.startedAt)));
   meta.appendChild(createMetaItem('结束时间', formatTime(entry.completedAt)));
   const durationValue = entry.status === 'completed' ? formatDuration(entry.durationSeconds) : '--';
   meta.appendChild(createMetaItem('耗时', durationValue));
+  meta.appendChild(createMetaItem('审批状态', formatReviewStatus(reviewStatus)));
 
   const body = document.createElement('div');
   body.className = 'subtask-body';
+
+  if (reviewStatus === 'rejected') {
+    const reviewWarning = document.createElement('p');
+    reviewWarning.className = 'subtask-review-warning';
+    reviewWarning.textContent = entry.reviewNotes
+      ? '家长备注：' + entry.reviewNotes
+      : '家长已驳回，请重新完成该子任务。';
+    body.appendChild(reviewWarning);
+  }
 
   const notes = entry.notes?.trim();
   if (notes) {
@@ -238,7 +279,7 @@ function renderSubtask(entry) {
     completeBtn.dataset.entryId = entry.id;
     completeBtn.textContent = '完成提交';
     actions.appendChild(completeBtn);
-  } else if (entry.status === 'completed' && proofCount < MAX_PROOFS) {
+  } else if (entry.status === 'completed' && reviewStatus !== 'approved' && proofCount < MAX_PROOFS) {
     const addProofBtn = document.createElement('button');
     addProofBtn.type = 'button';
     addProofBtn.className = 'ghost-button';

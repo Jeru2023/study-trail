@@ -11,6 +11,10 @@
   fetchAssignments,
   saveAssignments,
   removeAssignments,
+  fetchApprovalEntries,
+  approveStudentEntry,
+  rejectStudentEntry,
+  deleteApprovalEntry,
   logout
 } from '../modules/apiClient.js';
 import { qs, qsa, setMessage, disableForm, toggleHidden } from '../modules/dom.js';
@@ -22,6 +26,8 @@ import {
   getStudents,
   getTasks,
   getAssignments,
+  getApprovals,
+  getApprovalsDate,
   setActiveView,
   setEditingStudentId,
   setEditingTaskId,
@@ -29,6 +35,8 @@ import {
   setStudents,
   setTasks,
   setAssignments,
+  setApprovals,
+  setApprovalsDate,
   setUser
 } from './state.js';
 import { populateTaskForm, readTaskForm, renderTaskList, resetTaskForm } from './tasks.js';
@@ -41,6 +49,7 @@ import {
   resetAssignmentForm,
   readAssignmentForm
 } from './assignments.js';
+import { renderApprovalList } from './approvals.js';
 
 const TEXT = {
   task: {
@@ -51,34 +60,44 @@ const TEXT = {
     saveInProgress: '正在保存...',
     updateSuccess: '任务已更新',
     createSuccess: '任务创建成功',
-    titleRequired: '请填写任务标题',
-    pointsInvalid: '请填写有效的任务积分',
-    confirmDelete: (title) => `确认删除任务 “${title}” 吗？`
+    titleRequired: '必须填写任务标题',
+    pointsInvalid: '请输入有效的积分数值',
+    confirmDelete: (title) => `确认删除任务「${title}」吗？`
   },
   student: {
-    modalCreateTitle: '添加学生',
+    modalCreateTitle: '新增学生',
     modalEditTitle: '编辑学生',
     loading: '正在加载学生账号...',
     deleteSuccess: '学生账号已删除',
     saveInProgress: '正在保存账号信息...',
     updateSuccess: '学生账号已更新',
     createSuccess: '学生账号创建成功',
-    fieldRequired: '请填写姓名和登录名',
+    fieldRequired: '请填写完整的登录信息',
     passwordRequired: '请为新学生设置登录密码',
-    confirmDelete: (name) => `确认删除学生账号 “${name}” 吗？`
+    confirmDelete: (name) => `确认删除学生「${name}」吗？`
   },
   assignment: {
-    modalCreateTitle: '添加关联',
-    modalEditTitle: '编辑关联',
-    loading: '正在加载任务关联...',
-    saveInProgress: '正在保存关联...',
-    saveSuccess: '任务关联已保存',
-    deleteSuccess: '任务关联已清除',
+    modalCreateTitle: '新增分配',
+    modalEditTitle: '编辑分配',
+    loading: '正在加载任务分配...',
+    saveInProgress: '正在保存分配信息...',
+    saveSuccess: '分配信息已保存',
+    deleteSuccess: '分配已删除',
     studentRequired: '请选择学生',
-    taskRequired: '请至少选择一项打卡任务',
+    taskRequired: '至少选择一个任务',
     noStudents: '请先创建学生账号',
-    noTasks: '请先创建打卡任务',
-    confirmDelete: (name) => `确认清除学生 “${name}” 的全部关联吗？`
+    noTasks: '请先创建任务',
+    confirmDelete: (name) => `确认清空学生「${name}」的所有分配吗？`
+  },
+  approval: {
+    loading: '正在获取今日打卡记录...',
+    refreshSuccess: '审批列表已更新',
+    approveConfirm: '确认通过该打卡记录吗？',
+    approveSuccess: '已通过审批',
+    rejectConfirm: '确认要驳回该打卡记录吗？',
+    rejectSuccess: '已驳回，请提醒孩子重新补打卡',
+    deleteConfirm: '确认要删除这条打卡记录吗？完成的证据也会一并移除。',
+    deleteSuccess: '记录已删除'
   }
 };
 
@@ -88,6 +107,7 @@ const elements = {
   navTasks: qs('#navTasks'),
   navStudents: qs('#navStudents'),
   navAssignments: qs('#navAssignments'),
+  navApprovals: qs('#navApprovals'),
   addTaskBtn: qs('#addTaskBtn'),
   addStudentBtn: qs('#addStudentBtn'),
   addAssignmentBtn: qs('#addAssignmentBtn'),
@@ -122,6 +142,12 @@ const elements = {
     cancelBtn: qs('#cancelAssignmentBtn'),
     closeBtn: qs('#closeAssignmentModal'),
     taskContainer: qs('[data-assignment-tasks]')
+  },
+  approval: {
+    message: qs('#approvalMessage'),
+    list: qs('#approvalList'),
+    refreshBtn: qs('#refreshApprovalsBtn'),
+    dateLabel: qs('#approvalDateLabel')
   },
   avatar: {
     sidebar: qs('#sidebarAvatar'),
@@ -495,7 +521,7 @@ async function handleEditAssignment(studentId) {
 
 async function handleDeleteAssignment(studentId) {
   const assignment = getAssignments().find((item) => item.student.id === studentId);
-  const name = assignment?.student?.name || assignment?.student?.loginName || '该学生';
+  const name = assignment?.student?.name || assignment?.student?.loginName || '锟斤拷学锟斤拷';
   const confirmed = window.confirm(TEXT.assignment.confirmDelete(name));
   if (!confirmed) return;
   try {
@@ -537,6 +563,130 @@ async function submitAssignment(event) {
   }
 }
 
+// ----- Approval helpers -----
+
+function formatApprovalDateLabel(value) {
+  if (!value) {
+    return new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  }
+  const normalized = value.includes(' ') ? value.replace(' ', 'T') : value;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+}
+
+function updateApprovalDateLabel(value) {
+  if (!elements.approval.dateLabel) return;
+  elements.approval.dateLabel.textContent = formatApprovalDateLabel(value || getApprovalsDate());
+}
+
+function renderApprovals() {
+  if (!elements.approval.list) return;
+  const entries = getApprovals();
+  updateApprovalDateLabel();
+  renderApprovalList(elements.approval.list, entries, {
+    onApprove: handleApproveEntry,
+    onReject: handleRejectEntry,
+    onDelete: handleDeleteEntry
+  });
+  if (elements.approval.message) {
+    setMessage(elements.approval.message, '', '');
+  }
+}
+
+function replaceApprovalEntry(entry) {
+  const current = getApprovals();
+  const next = current.map((item) => (item.id === entry.id ? entry : item));
+  setApprovals(next);
+  renderApprovals();
+}
+
+function removeApprovalEntry(entryId) {
+  const current = getApprovals();
+  const next = current.filter((item) => item.id !== entryId);
+  setApprovals(next);
+  renderApprovals();
+}
+
+async function loadApprovals({ silent } = {}) {
+  if (!elements.approval.list) return;
+  if (!silent && elements.approval.message) {
+    setMessage(elements.approval.message, TEXT.approval.loading, 'info');
+  }
+  try {
+    const { entries = [], date } = await fetchApprovalEntries();
+    setApprovals(entries);
+    setApprovalsDate(date || null);
+    updateApprovalDateLabel(date);
+    renderApprovals();
+    if (!silent && elements.approval.message) {
+      setMessage(elements.approval.message, TEXT.approval.refreshSuccess, 'success');
+    }
+  } catch (error) {
+    if (elements.approval.message) {
+      setMessage(elements.approval.message, error.message, 'error');
+    }
+  }
+}
+
+async function handleApproveEntry(entryId, note) {
+  if (!window.confirm(TEXT.approval.approveConfirm)) {
+    return;
+  }
+  try {
+    const trimmedNote = note?.trim();
+    const payload = trimmedNote ? { note: trimmedNote } : {};
+    const { entry } = await approveStudentEntry(entryId, payload);
+    replaceApprovalEntry(entry);
+    if (elements.approval.message) {
+      setMessage(elements.approval.message, TEXT.approval.approveSuccess, 'success');
+    }
+  } catch (error) {
+    if (elements.approval.message) {
+      setMessage(elements.approval.message, error.message, 'error');
+    }
+  }
+}
+
+async function handleRejectEntry(entryId, note) {
+  if (!window.confirm(TEXT.approval.rejectConfirm)) {
+    return;
+  }
+  try {
+    const trimmedNote = note?.trim();
+    const payload = trimmedNote ? { note: trimmedNote } : {};
+    const { entry } = await rejectStudentEntry(entryId, payload);
+    replaceApprovalEntry(entry);
+    if (elements.approval.message) {
+      setMessage(elements.approval.message, TEXT.approval.rejectSuccess, 'success');
+    }
+  } catch (error) {
+    if (elements.approval.message) {
+      setMessage(elements.approval.message, error.message, 'error');
+    }
+  }
+}
+
+async function handleDeleteEntry(entryId) {
+  if (!window.confirm(TEXT.approval.deleteConfirm)) {
+    return;
+  }
+  try {
+    await deleteApprovalEntry(entryId);
+    removeApprovalEntry(entryId);
+    if (elements.approval.message) {
+      setMessage(elements.approval.message, TEXT.approval.deleteSuccess, 'success');
+    }
+  } catch (error) {
+    if (elements.approval.message) {
+      setMessage(elements.approval.message, error.message, 'error');
+    }
+  }
+}
+
+
 // ----- Navigation & lifecycle -----
 
 async function changeView(view) {
@@ -550,6 +700,8 @@ async function changeView(view) {
   } else if (view === 'assignments') {
     await ensureAssignmentDependencies();
     await loadAssignments();
+  } else if (view === 'approvals') {
+    await loadApprovals({ silent: true });
   }
 }
 
@@ -571,6 +723,9 @@ function setupNavigation() {
   }
   if (elements.navAssignments) {
     elements.navAssignments.addEventListener('click', () => changeView('assignments'));
+  }
+  if (elements.navApprovals) {
+    elements.navApprovals.addEventListener('click', () => changeView('approvals'));
   }
 }
 
@@ -658,6 +813,8 @@ async function bootstrap() {
     } else if (initialView === 'assignments') {
       await ensureAssignmentDependencies();
       await loadAssignments();
+    } else if (initialView === 'approvals') {
+      await loadApprovals({ silent: true });
     } else {
       await loadTasks();
     }
@@ -688,6 +845,9 @@ function main() {
   if (elements.logoutButton) {
     elements.logoutButton.addEventListener('click', handleLogout);
   }
+  if (elements.approval.refreshBtn) {
+    elements.approval.refreshBtn.addEventListener('click', () => loadApprovals({ silent: false }));
+  }
 
   setupModalInteractions();
   setupNavigation();
@@ -695,3 +855,6 @@ function main() {
 }
 
 document.addEventListener('DOMContentLoaded', main);
+
+
+
