@@ -76,6 +76,12 @@ export async function addSubtask(req, res) {
       res.status(400).json({ message: '该任务今日不可打卡' });
       return;
     }
+    if (error.message === 'DAY_PLAN_LOCKED') {
+      res
+        .status(409)
+        .json({ message: '今日该任务的子任务计划已锁定，无法新增子任务' });
+      return;
+    }
     res.status(500).json({ message: '创建子任务失败', detail: error.message });
   }
 }
@@ -136,6 +142,10 @@ export async function completeSubtask(req, res) {
       res.status(400).json({
         message: `上传文件数量超出限制，每次最多 ${config.uploads.maxPhotosPerEntry} 个文件`
       });
+      return;
+    }
+    if (error.message === 'DAY_PLAN_EMPTY') {
+      res.status(400).json({ message: '请先创建子任务后再提交' });
       return;
     }
     res.status(500).json({ message: '提交打卡失败', detail: error.message });

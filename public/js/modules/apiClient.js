@@ -91,6 +91,38 @@ export function removeTask(taskId) {
   return request(`/api/tasks/${taskId}`, { method: 'DELETE' });
 }
 
+export function fetchTaskOverrides() {
+  return request('/api/tasks/schedule-overrides');
+}
+
+export function upsertTaskOverride(payload) {
+  return request('/api/tasks/schedule-overrides', { method: 'POST', data: payload });
+}
+
+export function deleteTaskOverride(overrideId) {
+  return request(`/api/tasks/schedule-overrides/${overrideId}`, { method: 'DELETE' });
+}
+
+export function fetchNotifications({ limit = 30, offset = 0 } = {}) {
+  const params = new URLSearchParams();
+  if (limit) params.set('limit', limit);
+  if (offset) params.set('offset', offset);
+  const query = params.toString();
+  return request(`/api/notifications${query ? `?${query}` : ''}`);
+}
+
+export function fetchUnreadNotificationsCount() {
+  return request('/api/notifications/unread-count');
+}
+
+export function markNotificationRead(notificationId) {
+  return request(`/api/notifications/${notificationId}/read`, { method: 'POST' });
+}
+
+export function markAllNotificationsRead() {
+  return request('/api/notifications/read-all', { method: 'POST' });
+}
+
 export function fetchAssignments() {
   return request('/api/student-tasks');
 }

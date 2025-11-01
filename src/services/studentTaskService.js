@@ -1,4 +1,5 @@
 import { pool } from '../db/pool.js';
+import { ensureTaskSchedulingArtifacts } from '../db/schemaUpgrades.js';
 
 function aggregateAssignments(rows) {
   const map = new Map();
@@ -20,7 +21,8 @@ function aggregateAssignments(rows) {
     entry.tasks.push({
       id: row.task_id,
       title: row.task_title,
-      points: row.task_points
+      points: row.task_points,
+      scheduleType: row.task_schedule_type
     });
     entry.taskIds.push(row.task_id);
   });
@@ -29,6 +31,7 @@ function aggregateAssignments(rows) {
 }
 
 export async function listAssignmentsByParent(parentId) {
+  await ensureTaskSchedulingArtifacts();
   const [rows] = await pool.query(
     `SELECT
        st.student_id,
@@ -36,7 +39,8 @@ export async function listAssignmentsByParent(parentId) {
        s.display_name AS student_name,
        s.login_name AS student_login_name,
        t.title AS task_title,
-       t.points AS task_points
+       t.points AS task_points,
+       t.schedule_type AS task_schedule_type
      FROM student_tasks st
      INNER JOIN users s ON st.student_id = s.id AND s.role = 'student'
      INNER JOIN tasks t ON st.task_id = t.id

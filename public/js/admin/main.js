@@ -4,6 +4,9 @@
   createTask,
   updateTask,
   removeTask,
+  fetchTaskOverrides,
+  upsertTaskOverride,
+  deleteTaskOverride,
   fetchStudents,
   createStudent,
   updateStudent,
@@ -20,6 +23,10 @@
   updateReward,
   deleteReward,
   awardTaskPoints,
+  fetchNotifications,
+  fetchUnreadNotificationsCount,
+  markNotificationRead,
+  markAllNotificationsRead,
   fetchPointStudents,
   fetchStudentPointHistory,
   adjustStudentPoints,
@@ -37,10 +44,14 @@ import {
   getEditingRewardId,
   getStudents,
   getTasks,
+  getTaskOverrides,
+  getNotifications,
+  getNotificationsUnread,
   getAssignments,
   getRewards,
   getApprovals,
   getApprovalsDate,
+  getApprovalsTab,
   getPointsStudents,
   getPointsHistory,
   getActivePointsStudentId,
@@ -54,10 +65,14 @@ import {
   setEditingRewardId,
   setStudents,
   setTasks,
+  setTaskOverrides,
+  setNotifications,
+  setNotificationsUnread,
   setAssignments,
   setRewards,
   setApprovals,
   setApprovalsDate,
+  setApprovalsTab,
   setPointsStudents,
   setPointsHistory,
   setActivePointsStudentId,
@@ -76,7 +91,14 @@ import {
   setAnalyticsStudentHistory,
   setUser
 } from './state.js';
-import { populateTaskForm, readTaskForm, renderTaskList, resetTaskForm } from './tasks.js';
+import {
+  populateTaskForm,
+  readTaskForm,
+  renderTaskList,
+  setupTaskTypeToggle,
+  renderTaskOverrides,
+  resetTaskForm
+} from './tasks.js';
 import { populateStudentForm, readStudentForm, renderStudentList, resetStudentForm } from './students.js';
 import {
   renderAssignmentList,
@@ -116,7 +138,21 @@ const TEXT = {
     createSuccess: '任务创建成功',
     titleRequired: '必须填写任务标题',
     pointsInvalid: '请输入有效的积分数值',
-    confirmDelete: (title) => `确认删除任务「${title}」吗？`
+    scheduleInvalid: '请选择任务类型',
+    confirmDelete: (title) => `确认删除任务「${title}」吗？`,
+    overrideSaveSuccess: '日期调度已更新',
+    overrideDeleteSuccess: '已移除该日期的调度',
+    overrideDeleteConfirm: (range) => `确认移除 ${range || '该日期范围'} 的调度设置吗？`,
+    overridesLoading: '正在加载日程配置...',
+    overrideDateInvalid: '请选择开始和结束日期',
+    overrideRangeInvalid: '结束日期不能早于开始日期'
+  },
+  notifications: {
+    loading: '正在加载通知...',
+    emptyTitle: '暂时没有通知',
+    emptySubtitle: '当有新的动态时会第一时间告诉你。',
+    markAll: '全部设为已读',
+    markAllSuccess: '已将所有消息标记为已读'
   },
   student: {
     modalCreateTitle: '新增学生',
@@ -156,6 +192,17 @@ const TEXT = {
     confirmDelete: (title) => `确认删除奖励「${title}」吗？`
   },
   approval: {
+    tabs: {
+      pending: '待审批',
+      unsubmitted: '未提交',
+      completed: '已完成'
+    },
+    emptyPendingTitle: '今日暂无待审批任务',
+    emptyPendingSubtitle: '孩子们暂未提交新的打卡记录，请稍后再来查看。',
+    emptyUnsubmittedTitle: '今日暂无未提交任务',
+    emptyUnsubmittedSubtitle: '孩子们还未提交新的打卡，记得提醒他们按时完成哦。',
+    emptyCompletedTitle: '今日暂无已完成任务',
+    emptyCompletedSubtitle: '审批通过后，这里会显示已完成的打卡记录。',
     loading: '正在获取今日打卡记录...',
     refreshSuccess: '审批列表已更新',
     approveConfirm: '确认通过该打卡记录吗？',
@@ -197,6 +244,14 @@ const TEXT = {
   }
 };
 
+const APPROVAL_TABS = {
+  PENDING: 'pending',
+  UNSUBMITTED: 'unsubmitted',
+  COMPLETED: 'completed'
+};
+
+const DEFAULT_APPROVAL_TAB = APPROVAL_TABS.PENDING;
+
 const elements = {
   views: Array.from(document.querySelectorAll('.view')),
   navContainer: qs('.sidebar__nav'),
@@ -204,6 +259,7 @@ const elements = {
   navStudents: qs('#navStudents'),
   navAssignments: qs('#navAssignments'),
   navApprovals: qs('#navApprovals'),
+  navNotifications: qs('#navNotifications'),
   navRewards: qs('#navRewards'),
   navRedeem: qs('#navRedeem'),
   navPoints: qs('#navPoints'),
@@ -216,6 +272,9 @@ const elements = {
   task: {
     message: qs('#taskMessage'),
     list: qs('#taskList'),
+    overrideForm: qs('#taskOverrideForm'),
+    overrideMessage: qs('#taskOverrideMessage'),
+    overrideList: qs('#taskOverrideList'),
     modal: qs('#taskModal'),
     title: qs('#taskModalTitle'),
     form: qs('#taskForm'),
@@ -304,9 +363,16 @@ const elements = {
   },
   approval: {
     message: qs('#approvalMessage'),
+    tabs: qs('#approvalTabs'),
+    tabButtons: qsa('#approvalTabs button'),
     list: qs('#approvalList'),
     refreshBtn: qs('#refreshApprovalsBtn'),
     dateLabel: qs('#approvalDateLabel')
+  },
+  notifications: {
+    message: qs('#notificationsMessage'),
+    list: qs('#notificationList'),
+    markAllBtn: qs('#notificationsMarkAll')
   },
   avatar: {
     sidebar: qs('#sidebarAvatar'),
@@ -315,6 +381,10 @@ const elements = {
   name: {
     sidebar: qs('#sidebarUserName'),
     topbar: qs('#topbarUserName')
+  },
+  topbar: {
+    notificationsButton: qs('#notificationsButton'),
+    notificationsBadge: qs('#notificationsBadge')
   }
 };
 
@@ -339,6 +409,167 @@ function showView(view) {
     const visible = section.dataset.view === view;
     toggleHidden(section, !visible);
   });
+}
+
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value).replace(/[&<>'"]/g, (char) => {
+    switch (char) {
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      case "'":
+        return '&#39;';
+      default:
+        return char;
+    }
+  });
+}
+
+function formatNotificationTimestamp(value) {
+  if (!value) return '--';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function updateNotificationBadge() {
+  const badge = elements.topbar.notificationsBadge;
+  if (!badge) return;
+  const count = getNotificationsUnread();
+  if (!count) {
+    badge.hidden = true;
+    return;
+  }
+  badge.hidden = false;
+  badge.textContent = count > 99 ? '99+' : String(count);
+}
+
+function renderNotifications() {
+  const container = elements.notifications.list;
+  if (!container) return;
+
+  const notifications = getNotifications() ?? [];
+  if (!notifications.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <strong>${TEXT.notifications.emptyTitle}</strong>
+        <span>${TEXT.notifications.emptySubtitle}</span>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = notifications
+    .map((notification) => {
+      const isUnread = !notification.isRead;
+      const createdLabel = formatNotificationTimestamp(notification.createdAt);
+      const link = notification.linkUrl
+        ? `<a class="notification-list__link" data-href="${escapeHtml(notification.linkUrl)}">查看详情</a>`
+        : '';
+      const body = notification.body ? `<p class="notification-list__body">${escapeHtml(notification.body)}</p>` : '';
+      return `
+        <li class="notification-list__item${isUnread ? ' notification-list__item--unread' : ''}" data-href="${escapeHtml(notification.linkUrl ?? '')}">
+          <h3 class="notification-list__title">${escapeHtml(notification.title)}</h3>
+          ${body}
+          <div class="notification-list__meta">
+            <span>${escapeHtml(createdLabel)}</span>
+            <span>${link}</span>
+          </div>
+        </li>
+      `;
+    })
+    .join('');
+
+  container.querySelectorAll('.notification-list__link').forEach((anchor) => {
+    anchor.addEventListener('click', (event) => {
+      event.preventDefault();
+      const href = anchor.dataset.href;
+      if (href) {
+        window.location.href = href;
+      }
+    });
+  });
+
+  container.querySelectorAll('.notification-list__item').forEach((item) => {
+    const href = item.dataset.href;
+    if (!href) return;
+    item.addEventListener('click', (event) => {
+      if (event.target.closest('.notification-list__link')) {
+        return;
+      }
+      window.location.href = href;
+    });
+  });
+}
+
+async function refreshUnreadNotifications() {
+  try {
+    const { total } = await fetchUnreadNotificationsCount();
+    setNotificationsUnread(total ?? 0);
+    updateNotificationBadge();
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[notifications] failed to refresh unread count', error);
+  }
+}
+
+async function loadNotifications({ silent = false, markRead = false } = {}) {
+  if (!elements.notifications.list) return;
+
+  if (!silent && elements.notifications.message) {
+    setMessage(elements.notifications.message, TEXT.notifications.loading, 'info');
+  }
+
+  try {
+    if (markRead) {
+      await markAllNotificationsRead();
+    }
+
+    const { notifications = [] } = await fetchNotifications();
+    setNotifications(notifications);
+    renderNotifications();
+
+    await refreshUnreadNotifications();
+
+    updateNotificationBadge();
+    if (!silent && elements.notifications.message) {
+      setMessage(elements.notifications.message, '', '');
+    }
+  } catch (error) {
+    if (elements.notifications.message) {
+      setMessage(elements.notifications.message, error.message, 'error');
+    }
+  }
+}
+
+async function handleMarkAllNotifications(event) {
+  if (event) {
+    event.preventDefault();
+  }
+  try {
+    if (elements.notifications.message) {
+      setMessage(elements.notifications.message, TEXT.notifications.markAllSuccess, 'success');
+    }
+    await loadNotifications({ silent: true, markRead: true });
+  } catch (error) {
+    if (elements.notifications.message) {
+      setMessage(elements.notifications.message, error.message, 'error');
+    }
+  }
 }
 
 function updateUserDisplay(user) {
@@ -394,6 +625,7 @@ async function loadTasks() {
       onEdit: handleEditTask,
       onDelete: handleDeleteTask
     });
+    await loadTaskOverrides({ silent: true });
   } catch (error) {
     if (elements.task.list) elements.task.list.innerHTML = '';
     setMessage(elements.task.message, error.message, 'error');
@@ -431,6 +663,10 @@ async function submitTask(event) {
     setMessage(elements.task.formMessage, TEXT.task.pointsInvalid, 'error');
     return;
   }
+  if (!payload.scheduleType) {
+    setMessage(elements.task.formMessage, TEXT.task.scheduleInvalid, 'error');
+    return;
+  }
 
   const editingId = getEditingTaskId();
   try {
@@ -449,6 +685,88 @@ async function submitTask(event) {
     setMessage(elements.task.formMessage, error.message, 'error');
   } finally {
     disableForm(elements.task.form, false);
+  }
+}
+
+async function loadTaskOverrides({ silent } = {}) {
+  if (!elements.task.overrideList) return;
+  if (!silent && elements.task.overrideMessage) {
+    setMessage(elements.task.overrideMessage, TEXT.task.overridesLoading, 'info');
+  }
+  try {
+    const { overrides } = await fetchTaskOverrides();
+    setTaskOverrides(overrides ?? []);
+    renderTaskOverrides(elements.task.overrideList, getTaskOverrides(), {
+      onDelete: handleDeleteTaskOverride
+    });
+    if (!silent && elements.task.overrideMessage) {
+      setMessage(elements.task.overrideMessage, '', '');
+    }
+  } catch (error) {
+    if (elements.task.overrideMessage) {
+      setMessage(elements.task.overrideMessage, error.message, 'error');
+    }
+  }
+}
+
+async function submitTaskOverride(event) {
+  event.preventDefault();
+  if (!elements.task.overrideForm) return;
+
+  const form = elements.task.overrideForm;
+  const startValue = form.elements.startDate.value;
+  const endValue = form.elements.endDate.value;
+  const scheduleType = form.elements.scheduleType.value;
+  const note = form.elements.note.value.trim();
+
+  if (!startValue || !endValue) {
+    setMessage(elements.task.overrideMessage, TEXT.task.overrideDateInvalid, 'error');
+    return;
+  }
+  if (!scheduleType) {
+    setMessage(elements.task.overrideMessage, TEXT.task.scheduleInvalid, 'error');
+    return;
+  }
+
+  const startDateObj = new Date(startValue);
+  const endDateObj = new Date(endValue);
+  if (Number.isNaN(startDateObj.getTime()) || Number.isNaN(endDateObj.getTime())) {
+    setMessage(elements.task.overrideMessage, TEXT.task.overrideDateInvalid, 'error');
+    return;
+  }
+  if (endDateObj < startDateObj) {
+    setMessage(elements.task.overrideMessage, TEXT.task.overrideRangeInvalid, 'error');
+    return;
+  }
+
+  try {
+    disableForm(form, true);
+    await upsertTaskOverride({
+      startDate: startValue,
+      endDate: endValue,
+      scheduleType,
+      note: note || null
+    });
+    setMessage(elements.task.overrideMessage, TEXT.task.overrideSaveSuccess, 'success');
+    form.reset();
+    setupTaskTypeToggle(form);
+    await loadTaskOverrides({ silent: true });
+  } catch (error) {
+    setMessage(elements.task.overrideMessage, error.message, 'error');
+  } finally {
+    disableForm(form, false);
+  }
+}
+
+async function handleDeleteTaskOverride(overrideId, label) {
+  const confirmed = window.confirm(TEXT.task.overrideDeleteConfirm(label));
+  if (!confirmed) return;
+  try {
+    await deleteTaskOverride(overrideId);
+    setMessage(elements.task.overrideMessage, TEXT.task.overrideDeleteSuccess, 'success');
+    await loadTaskOverrides({ silent: true });
+  } catch (error) {
+    setMessage(elements.task.overrideMessage, error.message, 'error');
   }
 }
 
@@ -1680,19 +1998,113 @@ function updateApprovalDateLabel(value) {
   elements.approval.dateLabel.textContent = formatApprovalDateLabel(value || getApprovalsDate());
 }
 
+function normalizeApprovalTab(value) {
+  if (value === APPROVAL_TABS.UNSUBMITTED) {
+    return APPROVAL_TABS.UNSUBMITTED;
+  }
+  if (value === APPROVAL_TABS.COMPLETED) {
+    return APPROVAL_TABS.COMPLETED;
+  }
+  return APPROVAL_TABS.PENDING;
+}
+
+function splitApprovals(entries = []) {
+  const pending = [];
+  const unsubmitted = [];
+  const completed = [];
+
+  entries.forEach((entry) => {
+    if (!entry) return;
+    const status = entry.status ?? 'pending';
+    const reviewStatus = entry.reviewStatus ?? 'pending';
+    if (reviewStatus === 'approved') {
+      completed.push(entry);
+    } else if (status === 'completed' && reviewStatus === 'pending') {
+      pending.push(entry);
+    } else {
+      unsubmitted.push(entry);
+    }
+  });
+
+  return { pending, unsubmitted, completed };
+}
+
+function renderApprovalTabs(split) {
+  if (!elements.approval.tabButtons?.length) return;
+
+  const activeTab = normalizeApprovalTab(getApprovalsTab());
+  const counts = {
+    [APPROVAL_TABS.PENDING]: split.pending.length,
+    [APPROVAL_TABS.UNSUBMITTED]: split.unsubmitted.length,
+    [APPROVAL_TABS.COMPLETED]: split.completed.length
+  };
+
+  elements.approval.tabButtons.forEach((button) => {
+    const tabKey = normalizeApprovalTab(button.dataset.tab);
+    const isActive = tabKey === activeTab;
+    button.classList.toggle('chip-button--active', isActive);
+    button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    const baseLabel =
+      TEXT.approval.tabs?.[tabKey] || button.dataset.label || button.textContent.trim();
+    button.dataset.label = baseLabel;
+    const count = counts[tabKey] ?? 0;
+    button.textContent = count > 0 ? `${baseLabel} (${count})` : baseLabel;
+  });
+}
+
 function renderApprovals() {
   if (!elements.approval.list) return;
-  const entries = getApprovals();
+  const entries = getApprovals() ?? [];
   updateApprovalDateLabel();
-  renderApprovalList(elements.approval.list, entries, {
+
+  const split = splitApprovals(entries);
+  renderApprovalTabs(split);
+
+  const currentTab = getApprovalsTab();
+  const activeTab = normalizeApprovalTab(currentTab ?? DEFAULT_APPROVAL_TAB);
+  if (activeTab !== currentTab) {
+    setApprovalsTab(activeTab);
+  }
+
+  let activeEntries = split.pending;
+  let emptyTitle = TEXT.approval.emptyPendingTitle;
+  let emptySubtitle = TEXT.approval.emptyPendingSubtitle;
+
+  if (activeTab === APPROVAL_TABS.UNSUBMITTED) {
+    activeEntries = split.unsubmitted;
+    emptyTitle = TEXT.approval.emptyUnsubmittedTitle;
+    emptySubtitle = TEXT.approval.emptyUnsubmittedSubtitle;
+  } else if (activeTab === APPROVAL_TABS.COMPLETED) {
+    activeEntries = split.completed;
+    emptyTitle = TEXT.approval.emptyCompletedTitle;
+    emptySubtitle = TEXT.approval.emptyCompletedSubtitle;
+  }
+
+  renderApprovalList(elements.approval.list, activeEntries, {
     onApprove: handleApproveEntry,
     onReject: handleRejectEntry,
     onDelete: handleDeleteEntry,
-    onAward: handleAwardTask
+    onAward: handleAwardTask,
+    emptyTitle,
+    emptySubtitle
   });
   if (elements.approval.message) {
     setMessage(elements.approval.message, '', '');
   }
+}
+
+function handleApprovalTabClick(event) {
+  const button = event.target.closest('[data-tab]');
+  if (!button || !elements.approval.tabs?.contains(button)) {
+    return;
+  }
+  const nextTab = normalizeApprovalTab(button.dataset.tab);
+  const currentTab = normalizeApprovalTab(getApprovalsTab());
+  if (nextTab === currentTab) {
+    return;
+  }
+  setApprovalsTab(nextTab);
+  renderApprovals();
 }
 
 function replaceApprovalEntry(entry) {
@@ -1718,8 +2130,8 @@ async function loadApprovals({ silent } = {}) {
     const { entries = [], date } = await fetchApprovalEntries();
     setApprovals(entries);
     setApprovalsDate(date || null);
-    updateApprovalDateLabel(date);
     renderApprovals();
+    await refreshUnreadNotifications();
     if (!silent && elements.approval.message) {
       setMessage(elements.approval.message, TEXT.approval.refreshSuccess, 'success');
     }
@@ -1845,6 +2257,8 @@ async function changeView(view) {
     await loadAssignments();
   } else if (view === 'approvals') {
     await loadApprovals({ silent: true });
+  } else if (view === 'notifications') {
+    await loadNotifications({ silent: false, markRead: true });
   } else if (view === 'rewards') {
     await loadRewards({ silent: true });
   } else if (view === 'redeem') {
@@ -1889,6 +2303,15 @@ function setupNavigation() {
   }
   if (elements.navAnalytics) {
     elements.navAnalytics.addEventListener('click', () => changeView('analytics'));
+  }
+  if (elements.navNotifications) {
+    elements.navNotifications.addEventListener('click', () => changeView('notifications'));
+  }
+  if (elements.topbar.notificationsButton) {
+    elements.topbar.notificationsButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      changeView('notifications');
+    });
   }
 }
 
@@ -1985,6 +2408,7 @@ async function bootstrap() {
 
     setUser(user);
     updateUserDisplay(user);
+    await refreshUnreadNotifications();
 
     const initialView = getActiveView();
     showView(initialView);
@@ -1995,6 +2419,8 @@ async function bootstrap() {
       await loadAssignments();
     } else if (initialView === 'approvals') {
       await loadApprovals({ silent: true });
+    } else if (initialView === 'notifications') {
+      await loadNotifications({ silent: false, markRead: true });
     } else if (initialView === 'rewards') {
       await loadRewards({ silent: true });
     } else if (initialView === 'redeem') {
@@ -2025,7 +2451,15 @@ function main() {
     elements.addRewardBtn.addEventListener('click', () => openRewardModal('create'));
   }
   if (elements.task.form) {
+    setupTaskTypeToggle(elements.task.form);
     elements.task.form.addEventListener('submit', submitTask);
+  }
+  if (elements.task.overrideForm) {
+    setupTaskTypeToggle(elements.task.overrideForm);
+    elements.task.overrideForm.addEventListener('submit', submitTaskOverride);
+  }
+  if (elements.notifications.markAllBtn) {
+    elements.notifications.markAllBtn.addEventListener('click', handleMarkAllNotifications);
   }
   if (elements.student.form) {
     elements.student.form.addEventListener('submit', submitStudent);
@@ -2097,6 +2531,9 @@ function main() {
   if (elements.approval.refreshBtn) {
     elements.approval.refreshBtn.addEventListener('click', () => loadApprovals({ silent: false }));
   }
+  if (elements.approval.tabs) {
+    elements.approval.tabs.addEventListener('click', handleApprovalTabClick);
+  }
 
   setupModalInteractions();
   setupNavigation();
@@ -2104,6 +2541,3 @@ function main() {
 }
 
 document.addEventListener('DOMContentLoaded', main);
-
-
-

@@ -3,6 +3,10 @@ const state = {
   activeView: 'analytics',
   approvals: [],
   approvalsDate: null,
+  approvalsTab: 'pending',
+  taskOverrides: [],
+  notifications: [],
+  notificationsUnread: 0,
   tasks: [],
   students: [],
   assignments: [],
@@ -139,6 +143,38 @@ export function getApprovalsDate() {
   return state.approvalsDate;
 }
 
+export function setApprovalsTab(tab) {
+  state.approvalsTab = tab;
+}
+
+export function getApprovalsTab() {
+  return state.approvalsTab ?? 'pending';
+}
+
+export function setTaskOverrides(overrides) {
+  state.taskOverrides = overrides;
+}
+
+export function getTaskOverrides() {
+  return state.taskOverrides;
+}
+
+export function setNotifications(notifications) {
+  state.notifications = notifications;
+}
+
+export function getNotifications() {
+  return state.notifications;
+}
+
+export function setNotificationsUnread(count) {
+  state.notificationsUnread = count;
+}
+
+export function getNotificationsUnread() {
+  return state.notificationsUnread;
+}
+
 export function setEditingTaskId(taskId) {
   state.editingTaskId = taskId;
 }
@@ -210,5 +246,3 @@ export function setAnalyticsStudentHistory(history) {
 export function getAnalyticsStudentHistory() {
   return state.analyticsStudentHistory;
 }
-
-

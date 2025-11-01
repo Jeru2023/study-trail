@@ -1,6 +1,10 @@
 ﻿const TEXT = {
   emptyTitle: '今日还没有打卡记录',
   emptySubtitle: '孩子们还在努力中，请稍后再来看看～',
+  emptySubmittedTitle: '今日暂无待审批任务',
+  emptySubmittedSubtitle: '孩子们暂未提交新的打卡记录，请稍后再来查看。',
+  emptyUnsubmittedTitle: '今日暂无未提交任务',
+  emptyUnsubmittedSubtitle: '所有任务都已提交或通过审批，继续保持~',
   status: {
     pending: '未开始',
     in_progress: '进行中',
@@ -194,14 +198,21 @@ function buildApprovalCard(entry, { onApprove, onReject, onDelete }) {
   `;
 }
 
-export function renderApprovalList(container, entries, { onApprove, onReject, onDelete }) {
+export function renderApprovalList(
+  container,
+  entries,
+  { onApprove, onReject, onDelete, emptyTitle, emptySubtitle } = {}
+) {
   if (!container) return;
+
+  const emptyTitleText = emptyTitle ?? TEXT.emptyTitle;
+  const emptySubtitleText = emptySubtitle ?? TEXT.emptySubtitle;
 
   if (!entries.length) {
     container.innerHTML = `
       <div class="empty-state">
-        <strong>${TEXT.emptyTitle}</strong>
-        <span>${TEXT.emptySubtitle}</span>
+        <strong>${escapeHtml(emptyTitleText)}</strong>
+        <span>${escapeHtml(emptySubtitleText)}</span>
       </div>
     `;
     return;

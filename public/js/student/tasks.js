@@ -389,6 +389,9 @@ export function createTaskController(state, elements, showPageMessage) {
         `还能上传 ${remaining} 个文件，请调整后再试。`,
         'error'
       );
+      if (elements.proofInput) {
+        elements.proofInput.value = '';
+      }
       return;
     }
 
@@ -525,10 +528,13 @@ export function createTaskController(state, elements, showPageMessage) {
     }
 
     const files = elements.proofInput?.files ? Array.from(elements.proofInput.files) : [];
-    if (files.length > state.remainingCapacity) {
+    const existingProofs = getProofs(state.completingEntry || {}).length;
+    const maxAttachments = Math.max(0, MAX_PROOFS - existingProofs);
+
+    if (files.length > maxAttachments) {
       setMessage(
         elements.completeFormMessage,
-        `还能上传 ${state.remainingCapacity} 个文件，请调整后再试。`,
+        `还能上传 ${maxAttachments} 个文件，请调整后再试。`,
         'error'
       );
       return;

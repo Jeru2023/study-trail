@@ -23,6 +23,8 @@ function sanitizeUser(user) {
 export async function registerParent(req, res) {
   try {
     const { loginName, email, password } = req.body;
+    // eslint-disable-next-line no-console
+    console.debug('[registerParent] incoming payload', { loginName, email });
 
     if (!loginName || !email || !password) {
       return res.status(400).json({ message: '缺少必要参数' });
@@ -32,6 +34,8 @@ export async function registerParent(req, res) {
 
     return res.status(201).json({ user: sanitizeUser(parent) });
   } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[registerParent] failed', error);
     if (error.message === 'LOGIN_NAME_TAKEN') {
       return res.status(409).json({ message: '登录名已被占用' });
     }

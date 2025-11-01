@@ -1,4 +1,10 @@
-﻿import { getCurrentUser, logout } from '../modules/apiClient.js';
+﻿import {
+  getCurrentUser,
+  logout,
+  fetchNotifications,
+  fetchUnreadNotificationsCount,
+  markAllNotificationsRead
+} from '../modules/apiClient.js';
 import { qs, setMessage, toggleHidden } from '../modules/dom.js';
 import { createTaskController } from './tasks.js';
 import { createStoreController } from './store.js';
@@ -12,7 +18,9 @@ const state = {
   completingEntry: null,
   previewUrls: [],
   remainingCapacity: 6,
-  storeLoaded: false
+  storeLoaded: false,
+  notifications: [],
+  notificationsUnread: 0
 };
 
 const elements = {
@@ -22,8 +30,14 @@ const elements = {
   logoutBtn: qs('#logoutStudentBtn'),
   navTasks: qs('#studentNavTasks'),
   navStore: qs('#studentNavStore'),
+  navMessages: qs('#studentNavMessages'),
   views: Array.from(document.querySelectorAll('.student-view')),
-  pageMessage: qs('#studentPageMessage')
+  pageMessage: qs('#studentPageMessage'),
+  notificationsButton: qs('#studentNotificationsButton'),
+  notificationsBadge: qs('#studentNotificationsBadge'),
+  notificationList: qs('#studentNotificationList'),
+  notificationsMessage: qs('#studentNotificationsMessage'),
+  notificationsMarkAllBtn: qs('#studentMarkAllNotifications')
 };
 
 const taskController = createTaskController(state, {
@@ -57,6 +71,148 @@ function formatDateLabel(dateString) {
   });
 }
 
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value).replace(/[&<>'"]/g, (char) => {
+    switch (char) {
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      case "'":
+        return '&#39;';
+      default:
+        return char;
+    }
+  });
+}
+
+function formatNotificationTimestamp(value) {
+  if (!value) return '--';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function updateNotificationBadge() {
+  const badge = elements.notificationsBadge;
+  if (!badge) return;
+  const count = state.notificationsUnread;
+  if (!count) {
+    badge.hidden = true;
+    return;
+  }
+  badge.hidden = false;
+  badge.textContent = count > 99 ? '99+' : String(count);
+}
+
+function renderNotifications() {
+  const container = elements.notificationList;
+  if (!container) return;
+
+  const notifications = state.notifications ?? [];
+  if (!notifications.length) {
+    container.innerHTML = `
+      <div class="empty-hint">暂时没有新的消息，继续保持今天的好状态吧！</div>
+    `;
+    return;
+  }
+
+  container.innerHTML = notifications
+    .map((notification) => {
+      const isUnread = !notification.isRead;
+      const createdLabel = formatNotificationTimestamp(notification.createdAt);
+      const link = notification.linkUrl
+        ? `<a class="student-notification-list__link" data-href="${escapeHtml(notification.linkUrl)}">查看详情</a>`
+        : '';
+      const body = notification.body
+        ? `<p class="student-notification-list__body">${escapeHtml(notification.body)}</p>`
+        : '';
+      return `
+        <li class="student-notification-list__item${isUnread ? ' student-notification-list__item--unread' : ''}" data-href="${escapeHtml(notification.linkUrl ?? '')}">
+          <h3 class="student-notification-list__title">${escapeHtml(notification.title)}</h3>
+          ${body}
+          <div class="student-notification-list__meta">
+            <span>${escapeHtml(createdLabel)}</span>
+            <span>${link}</span>
+          </div>
+        </li>
+      `;
+    })
+    .join('');
+
+  container.querySelectorAll('.student-notification-list__link').forEach((anchor) => {
+    anchor.addEventListener('click', (event) => {
+      event.preventDefault();
+      const href = anchor.dataset.href;
+      if (href) {
+        window.location.href = href;
+      }
+    });
+  });
+
+  container.querySelectorAll('.student-notification-list__item').forEach((item) => {
+    const href = item.dataset.href;
+    if (!href) return;
+    item.addEventListener('click', (event) => {
+      if (event.target.closest('.student-notification-list__link')) {
+        return;
+      }
+      window.location.href = href;
+    });
+  });
+}
+
+async function refreshUnreadNotifications() {
+  try {
+    const { total } = await fetchUnreadNotificationsCount();
+    state.notificationsUnread = total ?? 0;
+    updateNotificationBadge();
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[student notifications] failed to refresh unread count', error);
+  }
+}
+
+async function loadNotifications({ markRead = false, silent = false } = {}) {
+  if (!elements.notificationList) return;
+
+  try {
+    if (markRead) {
+      await markAllNotificationsRead();
+    }
+
+    const { notifications = [] } = await fetchNotifications();
+    state.notifications = notifications;
+    renderNotifications();
+
+    await refreshUnreadNotifications();
+
+    if (!silent && elements.notificationsMessage) {
+      elements.notificationsMessage.hidden = true;
+      delete elements.notificationsMessage.dataset.type;
+      elements.notificationsMessage.textContent = '';
+    }
+  } catch (error) {
+    if (elements.notificationsMessage) {
+      elements.notificationsMessage.hidden = false;
+      elements.notificationsMessage.dataset.type = 'error';
+      elements.notificationsMessage.textContent = error.message;
+    }
+  }
+}
 function showPageMessage(text, type = '') {
   setMessage(elements.pageMessage, text, type);
 }
@@ -66,7 +222,7 @@ function getActiveView() {
 }
 
 function highlightNav(view) {
-  [elements.navTasks, elements.navStore].forEach((button) => {
+  [elements.navTasks, elements.navStore, elements.navMessages].forEach((button) => {
     if (!button) return;
     const active = button.dataset.view === view;
     button.classList.toggle('student-nav__item--active', active);
@@ -82,7 +238,13 @@ function showView(view) {
 
 function updateHeaderTitle(view) {
   if (!elements.headerTitle) return;
-  elements.headerTitle.textContent = view === 'store' ? '积分商城' : '每日任务';
+  if (view === 'store') {
+    elements.headerTitle.textContent = '积分商城';
+  } else if (view === 'messages') {
+    elements.headerTitle.textContent = '消息中心';
+  } else {
+    elements.headerTitle.textContent = '每日任务';
+  }
 }
 
 function updateDateHeader() {
@@ -97,6 +259,8 @@ async function changeView(view) {
   showView(view);
   if (view === 'store') {
     await storeController.loadStore({ silent: state.storeLoaded });
+  } else if (view === 'messages') {
+    await loadNotifications({ markRead: true });
   }
 }
 
@@ -111,6 +275,37 @@ function registerEvents() {
     elements.navStore.addEventListener('click', (event) => {
       event.preventDefault();
       changeView('store');
+    });
+  }
+  if (elements.navMessages) {
+    elements.navMessages.addEventListener('click', (event) => {
+      event.preventDefault();
+      changeView('messages');
+    });
+  }
+  if (elements.notificationsButton) {
+    elements.notificationsButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      changeView('messages');
+    });
+  }
+  if (elements.notificationsMarkAllBtn) {
+    elements.notificationsMarkAllBtn.addEventListener('click', async (event) => {
+      event.preventDefault();
+      try {
+        await loadNotifications({ markRead: true, silent: true });
+        if (elements.notificationsMessage) {
+          elements.notificationsMessage.hidden = false;
+          elements.notificationsMessage.dataset.type = 'success';
+          elements.notificationsMessage.textContent = '已将所有消息标记为已读';
+        }
+      } catch (error) {
+        if (elements.notificationsMessage) {
+          elements.notificationsMessage.hidden = false;
+          elements.notificationsMessage.dataset.type = 'error';
+          elements.notificationsMessage.textContent = error.message;
+        }
+      }
     });
   }
 
@@ -149,6 +344,7 @@ async function bootstrap() {
   if (!(await ensureStudentSession())) {
     return;
   }
+  await refreshUnreadNotifications();
   updateDateHeader();
   updateHeaderTitle(getActiveView());
   showView(getActiveView());

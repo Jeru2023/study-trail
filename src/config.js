@@ -17,9 +17,9 @@ export const config = {
   db: {
     host: process.env.MYSQL_HOST || '127.0.0.1',
     port: Number(process.env.MYSQL_PORT) || 3306,
-    user: process.env.MYSQL_USER || 'root',
-    password: process.env.MYSQL_PASSWORD || '',
-    database: process.env.MYSQL_DATABASE || 'study_trail',
+    user: process.env.MYSQL_USER || 'study',
+    password: process.env.MYSQL_PASSWORD || 'Trail-2025',
+    database: process.env.MYSQL_DATABASE || 'study-trail',
     connectionLimit: Number(process.env.MYSQL_POOL_SIZE) || 10
   },
   uploads: {

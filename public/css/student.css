@@ -116,6 +116,10 @@ a:hover {
 
 .student-header {
   padding: 2rem 2.5rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
 }
 
 .student-header h1 {
@@ -128,6 +132,58 @@ a:hover {
   margin: 0.4rem 0 0;
   color: #64748b;
   font-size: 0.95rem;
+}
+
+.student-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.icon-button--badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.icon-button--badge:hover,
+.icon-button--badge:focus-visible {
+  box-shadow: 0 10px 24px rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.35);
+  outline: none;
+}
+
+.icon-button--badge .icon {
+  font-size: 1.1rem;
+  color: var(--color-primary, #1d4ed8);
+}
+
+.icon-envelope::before {
+  content: '\\2709';
+}
+
+.badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #f97316;
+  color: #ffffff;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .student-content {
@@ -234,10 +290,79 @@ a:hover {
   color: #b91c1c;
 }
 
+.store-message[data-type='success'] {
+  background: #dcfce7;
+  color: #15803d;
+}
+
 .store-grid {
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.student-messages {
+  display: grid;
+  gap: 1rem;
+}
+
+.student-messages__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.student-notification-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.student-notification-list__item {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  border-left: 4px solid rgba(29, 78, 216, 0.2);
+}
+
+.student-notification-list__item--unread {
+  border-left-color: rgba(29, 78, 216, 0.85);
+  box-shadow: 0 14px 36px rgba(29, 78, 216, 0.22);
+}
+
+.student-notification-list__title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.student-notification-list__body {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.student-notification-list__meta {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.student-notification-list__link {
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+.student-notification-list__link:hover,
+.student-notification-list__link:focus-visible {
+  text-decoration: underline;
 }
 
 .store-card {
@@ -790,4 +915,3 @@ a:hover {
   color: #b91c1c;
   font-size: 0.9rem;
 }
-

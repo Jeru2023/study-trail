@@ -45,8 +45,10 @@
           <button class="nav-item" data-view="points" id="navPoints">
             <span>积分管理</span>
           </button>
+          <button class="nav-item" data-view="notifications" id="navNotifications">
+            <span>消息中心</span>
+          </button>
           <button class="nav-item" disabled>成长档案</button>
-          <button class="nav-item" disabled>消息中心</button>
         </nav>
         <div class="sidebar__footer">
           <button class="nav-item" id="logoutButton">退出登录</button>
@@ -59,6 +61,10 @@
             <input type="search" placeholder="搜索..." disabled />
           </div>
           <div class="topbar__actions">
+            <button type="button" class="icon-button icon-button--badge" id="notificationsButton" aria-label="消息中心">
+              <span class="icon icon-envelope" aria-hidden="true"></span>
+              <span class="badge" id="notificationsBadge" hidden>0</span>
+            </button>
             <div class="user-chip">
               <span class="avatar" id="topbarAvatar">P</span>
               <div class="user-chip__meta">
@@ -148,10 +154,51 @@
               <button type="button" class="primary-button" id="addTaskBtn">新建任务</button>
             </div>
             <p class="page-message" id="taskMessage"></p>
-            <section id="taskList" class="card"></section>
+          <section id="taskList" class="card"></section>
+          <section class="card task-overrides" id="taskOverridesCard">
+            <div class="task-overrides__header">
+              <div>
+                <h2>日程调度</h2>
+                <p class="page-subtitle">周一至周五自动使用日常任务，周末使用节假任务，可在此调整特殊放假或调休日期。</p>
+              </div>
+            </div>
+            <p class="form-message" id="taskOverrideMessage"></p>
+            <form id="taskOverrideForm" class="task-overrides__form">
+              <div class="form-grid task-overrides__fields">
+                <label class="form-field">
+                  <span class="form-label">开始日期</span>
+                  <input type="date" name="startDate" required />
+                </label>
+                <label class="form-field">
+                  <span class="form-label">结束日期</span>
+                  <input type="date" name="endDate" required />
+                </label>
+                <label class="form-field">
+                  <span class="form-label">任务类型</span>
+                  <div class="task-type-toggle" data-task-type-toggle>
+                    <input type="hidden" name="scheduleType" value="weekday" />
+                    <button type="button" class="chip-button chip-button--active" data-schedule="weekday">
+                      日常任务（周一至周五）
+                    </button>
+                    <button type="button" class="chip-button" data-schedule="holiday">
+                      节假任务（周末及放假日）
+                    </button>
+                  </div>
+                </label>
+                <label class="form-field">
+                  <span class="form-label">备注（可选）</span>
+                  <input type="text" name="note" maxlength="120" placeholder="例如：五一放假" />
+                </label>
+              </div>
+              <div class="task-overrides__actions">
+                <button type="submit" class="primary-button">保存调整</button>
+              </div>
+            </form>
+            <div id="taskOverrideList" class="task-overrides__list"></div>
           </section>
+        </section>
 
-          <section class="view" data-view="students" hidden>
+        <section class="view" data-view="students" hidden>
             <div class="page-header">
               <div>
                 <h1>学生账号</h1>
@@ -184,6 +231,35 @@
               <button type="button" class="primary-button" id="refreshApprovalsBtn">刷新</button>
             </div>
             <p class="page-message" id="approvalMessage"></p>
+            <div class="approval-tabs" id="approvalTabs" role="tablist" aria-label="打卡审批任务筛选">
+              <button
+                type="button"
+                class="chip-button chip-button--active"
+                data-tab="pending"
+                role="tab"
+                aria-selected="true"
+              >
+                待审批
+              </button>
+              <button
+                type="button"
+                class="chip-button"
+                data-tab="unsubmitted"
+                role="tab"
+                aria-selected="false"
+              >
+                未提交
+              </button>
+              <button
+                type="button"
+                class="chip-button"
+                data-tab="completed"
+                role="tab"
+                aria-selected="false"
+              >
+                已完成
+              </button>
+            </div>
             <section id="approvalList" class="card approval-list"></section>
           </section>
           <section class="view" data-view="rewards" hidden>
@@ -288,7 +364,7 @@
             <p class="page-message" id="pointsMessage"></p>
             <div class="points-layout">
               <aside class="points-students card" id="pointsStudentList"></aside>
-              <section class="points-detail card" id="pointsDetail" data-empty="true">
+            <section class="points-detail card" id="pointsDetail" data-empty="true">
                 <div class="points-detail__placeholder" id="pointsEmptyHint">
                   <p>请选择一位学生查看积分详情。</p>
                 </div>
@@ -355,6 +431,18 @@
               </section>
             </div>
           </section>
+
+          <section class="view" data-view="notifications" hidden>
+            <div class="page-header">
+              <div>
+                <h1>消息中心</h1>
+                <p class="page-subtitle">查看与打卡相关的提醒和最新动态。</p>
+              </div>
+              <button type="button" class="ghost-button" id="notificationsMarkAll">全部设为已读</button>
+            </div>
+            <p class="page-message" id="notificationsMessage"></p>
+            <ul class="notification-list" id="notificationList"></ul>
+          </section>
         </main>
       </div>
     </div>
@@ -375,6 +463,19 @@
           <label class="form-field">
             <span class="form-label">任务说明</span>
             <textarea name="description" rows="4" placeholder="补充任务要求或奖励机制"></textarea>
+          </label>
+
+          <label class="form-field">
+            <span class="form-label">任务类型</span>
+            <div class="task-type-toggle" data-task-type-toggle>
+              <input type="hidden" name="scheduleType" value="weekday" />
+              <button type="button" class="chip-button chip-button--active" data-schedule="weekday">
+                日常任务（周一至周五）
+              </button>
+              <button type="button" class="chip-button" data-schedule="holiday">
+                节假任务（周末及放假日）
+              </button>
+            </div>
           </label>
 
           <label class="form-field">
@@ -519,10 +620,3 @@
     <script type="module" src="/js/admin/main.js"></script>
   </body>
 </html>
-
-
-
-
-
-
-
