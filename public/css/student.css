@@ -30,19 +30,27 @@ button {
 }
 
 /* Sidebar copied from parent styles */
+:root {
+  --student-sidebar-width: 260px;
+}
+
 .student-shell {
-  display: grid;
-  grid-template-columns: 260px 1fr;
   min-height: 100vh;
 }
 
 .sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--student-sidebar-width);
   background: linear-gradient(180deg, var(--color-sidebar) 0%, #3c2d7f 100%);
   color: #fff;
   padding: 2.5rem 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  overflow-y: auto;
+  box-shadow: 12px 0 30px rgba(17, 24, 39, 0.16);
+  z-index: 12;
 }
 
 .sidebar__brand {
@@ -132,6 +140,8 @@ button {
 .student-workspace {
   display: flex;
   flex-direction: column;
+  margin-left: var(--student-sidebar-width);
+  min-height: 100vh;
 }
 
 .student-header {
@@ -452,12 +462,12 @@ button {
 
 .student-plan {
   background: #fdfdff;
-  border-radius: 24px;
-  padding: 2rem;
+  border-radius: 16px;
+  padding: 1.75rem;
   display: grid;
-  gap: 1.5rem;
-  border: 1px solid #eef2ff;
-  box-shadow: 0 30px 70px rgba(19, 39, 95, 0.12);
+  gap: 1.25rem;
+  border: 1px solid #e8ecfb;
+  box-shadow: 0 20px 50px rgba(19, 39, 95, 0.1);
 }
 
 .student-plan__header {
@@ -526,11 +536,8 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  padding: 0.35rem;
-  border-radius: 999px;
-  background: #eff3ff;
-  border: 1px solid #e3e9ff;
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.6);
+  padding: 0.5rem 0.25rem;
+  border-bottom: 1px solid #e4e9f5;
 }
 
 .student-plan__tabs::-webkit-scrollbar {
@@ -546,28 +553,28 @@ button {
 .student-plan__tab {
   display: inline-flex;
   align-items: center;
-  padding: 0.45rem 1.15rem;
-  border-radius: 999px;
+  padding: 0.35rem 1rem;
+  border-radius: 8px;
   border: 1px solid transparent;
-  background: #ffffff;
+  background: #f5f6fb;
   color: #4c5980;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 0.92rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 8px 20px rgba(61, 80, 155, 0.08);
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  height: 40px;
+  line-height: 1.2;
 }
 
 .student-plan__tab:hover {
-  color: #2563eb;
-  box-shadow: 0 12px 26px rgba(61, 80, 155, 0.12);
+  color: #1d4ed8;
+  background: #eef2ff;
 }
 
 .student-plan__tab--active {
-  background: linear-gradient(135deg, #1ed6ba 0%, #2188ff 100%);
+  background: #1d4ed8;
   color: #ffffff;
-  box-shadow: 0 16px 40px rgba(33, 136, 255, 0.35);
-  transform: translateY(-1px);
+  border-color: #1d4ed8;
 }
 
 .student-plan__tab-count {
@@ -575,17 +582,17 @@ button {
   align-items: center;
   justify-content: center;
   margin-left: 0.4rem;
-  min-width: 1.7rem;
-  padding: 0 0.4rem;
+  min-width: 1.5rem;
+  padding: 0 0.35rem;
   border-radius: 999px;
-  background: rgba(76, 89, 128, 0.12);
+  background: rgba(76, 89, 128, 0.16);
   color: inherit;
   font-size: 0.78rem;
   font-weight: 600;
 }
 
 .student-plan__tab--active .student-plan__tab-count {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.22);
   color: #ffffff;
 }
 
@@ -623,21 +630,20 @@ button {
 
 .student-plan__field input {
   width: 100%;
-  min-height: 54px;
-  padding: 0.75rem 1.5rem;
-  border-radius: 999px;
-  border: 2px solid #d6defa;
+  min-height: 48px;
+  padding: 0.65rem 1.2rem;
+  border-radius: 10px;
+  border: 1px solid #d8def1;
   background: #ffffff;
   font-size: 1rem;
   line-height: 1.4;
   color: #0f172a;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  box-shadow: 0 15px 35px rgba(36, 69, 170, 0.08);
 }
 
 .student-plan__field input:focus {
-  border-color: #3770ff;
-  box-shadow: 0 18px 40px rgba(55, 112, 255, 0.25);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
   outline: none;
 }
 
@@ -657,28 +663,28 @@ button {
 }
 
 .student-plan .primary-button {
-  border-radius: 999px;
-  min-height: 54px;
-  padding: 0.75rem 2.5rem;
-  font-size: 1.02rem;
+  border-radius: 10px;
+  min-height: 48px;
+  padding: 0.65rem 1.75rem;
+  font-size: 1rem;
   font-weight: 600;
   border: none;
-  background: linear-gradient(135deg, #2f66ff 0%, #3b60ff 55%, #285dff 100%);
-  box-shadow: 0 20px 40px rgba(47, 102, 255, 0.35);
+  background: #2563eb;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
 }
 
 .student-plan .primary-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, #285dff 0%, #224fe0 100%);
+  background: #1d4ed8;
 }
 
 .student-plan .ghost-button {
-  border-radius: 999px;
-  border: 1px solid #dde2f5;
-  color: #4b5cc4;
-  padding: 0.5rem 1.4rem;
+  border-radius: 10px;
+  border: 1px solid #d8def1;
+  color: #4257c5;
+  padding: 0.45rem 1.25rem;
   background: #ffffff;
-  box-shadow: 0 10px 24px rgba(40, 58, 141, 0.12);
-  font-weight: 600;
+  box-shadow: none;
+  font-weight: 500;
 }
 
 .student-plan .ghost-button--danger {
@@ -688,8 +694,8 @@ button {
 
 .student-plan__empty {
   text-align: center;
-  padding: 1.25rem;
-  border-radius: 16px;
+  padding: 1rem;
+  border-radius: 10px;
   border: 1px dashed #d7dff7;
   color: #7a85b6;
   font-size: 0.95rem;
@@ -705,44 +711,44 @@ button {
 }
 
 .student-plan__item {
-  border: 1px solid #eef1ff;
-  border-radius: 18px;
-  padding: 1rem 1.25rem;
+  border: 1px solid #e5e9f5;
+  border-radius: 12px;
+  padding: 0.9rem 1.1rem;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
   background: #ffffff;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .student-plan__item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.12);
+  background: #f8f9ff;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
 }
 
 .student-plan__item-content {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.3rem;
 }
 
 .student-plan__item-task {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.9rem;
+  padding: 0.15rem 0.75rem;
   border-radius: 999px;
-  background: #e5e9ff;
-  color: #4954d6;
-  font-size: 0.78rem;
+  background: #e6ebff;
+  color: #4b56c3;
+  font-size: 0.76rem;
   font-weight: 600;
 }
 
 .student-plan__item-title {
   margin: 0;
   color: #0f1f46;
-  font-size: 1.04rem;
-  line-height: 1.55;
+  font-size: 1rem;
+  line-height: 1.45;
 }
 
 .student-plan__item-actions {
@@ -772,7 +778,7 @@ button {
 }
 
 .student-plan__footer .primary-button {
-  min-width: 160px;
+  min-width: 150px;
   padding-inline: 1.4rem;
 }
 
@@ -1367,6 +1373,7 @@ button {
 
   .student-plan__tab {
     flex: 1 0 120px;
+    height: 40px;
   }
 }
 

@@ -15,10 +15,13 @@
   saveAssignments,
   removeAssignments,
   fetchApprovalEntries,
+  fetchParentPlans,
   fetchRewards,
   approveStudentEntry,
   rejectStudentEntry,
   deleteApprovalEntry,
+  approveParentPlan,
+  rejectParentPlan,
   createReward,
   updateReward,
   deleteReward,
@@ -53,6 +56,8 @@ import {
   getApprovals,
   getApprovalsDate,
   getApprovalsTab,
+  getPlanApprovals,
+  getPlanApprovalsStatus,
   getPointsStudents,
   getPointsHistory,
   getActivePointsStudentId,
@@ -74,6 +79,8 @@ import {
   setApprovals,
   setApprovalsDate,
   setApprovalsTab,
+  setPlanApprovals,
+  setPlanApprovalsStatus,
   setPointsStudents,
   setPointsHistory,
   setActivePointsStudentId,
@@ -110,6 +117,7 @@ import {
   readAssignmentForm
 } from './assignments.js';
 import { renderApprovalList } from './approvals.js';
+import { renderPlanApprovalList } from './planApprovals.js';
 import {
   populateRewardForm,
   readRewardForm,
@@ -220,6 +228,34 @@ const TEXT = {
     awardInProgress: '正在发放积分...',
     awardSuccess: '任务积分已发放'
   },
+  planApproval: {
+    tabs: {
+      submitted: '待审批',
+      approved: '已通过',
+      rejected: '已驳回'
+    },
+    loading: '正在加载学习计划...',
+    loadFailed: '学习计划加载失败',
+    empty: {
+      submitted: {
+        title: '暂无待审批的学习计划',
+        subtitle: '孩子们还在准备今日计划，请稍后再查看。'
+      },
+      approved: {
+        title: '暂无已通过的计划记录',
+        subtitle: '通过审批的计划将会显示在这里。'
+      },
+      rejected: {
+        title: '暂无已驳回的计划记录',
+        subtitle: '若计划被驳回，会列在这里。'
+      }
+    },
+    approveConfirm: '确认通过该学习计划吗？',
+    approveSuccess: '已通过该学习计划',
+    rejectConfirm: '确认驳回该学习计划吗？',
+    rejectPrompt: '请输入驳回理由（可选）',
+    rejectSuccess: '已驳回该学习计划'
+  },
   points: {
     loading: '正在加载积分数据...',
     refreshSuccess: '积分信息已刷新',
@@ -254,6 +290,12 @@ const APPROVAL_TABS = {
   COMPLETED: 'completed'
 };
 
+const PLAN_APPROVAL_TABS = {
+  SUBMITTED: 'submitted',
+  APPROVED: 'approved',
+  REJECTED: 'rejected'
+};
+
 const DEFAULT_APPROVAL_TAB = APPROVAL_TABS.PENDING;
 
 const elements = {
@@ -263,6 +305,7 @@ const elements = {
   navStudents: qs('#navStudents'),
   navAssignments: qs('#navAssignments'),
   navApprovals: qs('#navApprovals'),
+  navPlanApprovals: qs('#navPlanApprovals'),
   navNotifications: qs('#navNotifications'),
   navRewards: qs('#navRewards'),
   navRedeem: qs('#navRedeem'),
@@ -372,6 +415,13 @@ const elements = {
     list: qs('#approvalList'),
     refreshBtn: qs('#refreshApprovalsBtn'),
     dateLabel: qs('#approvalDateLabel')
+  },
+  planApproval: {
+    message: qs('#planApprovalsMessage'),
+    tabs: qs('#planApprovalsTabs'),
+    tabButtons: qsa('#planApprovalsTabs button'),
+    list: qs('#planApprovalsList'),
+    refreshBtn: qs('#planApprovalsRefreshBtn')
   },
   notifications: {
     message: qs('#notificationsMessage'),
@@ -2245,6 +2295,145 @@ async function handleAwardTask(payload, button) {
   }
 }
 
+// ----- Plan approval helpers -----
+
+function normalizePlanApprovalStatus(value) {
+  if (value === PLAN_APPROVAL_TABS.APPROVED) {
+    return PLAN_APPROVAL_TABS.APPROVED;
+  }
+  if (value === PLAN_APPROVAL_TABS.REJECTED) {
+    return PLAN_APPROVAL_TABS.REJECTED;
+  }
+  return PLAN_APPROVAL_TABS.SUBMITTED;
+}
+
+function renderPlanApprovalTabs(counts = {}) {
+  if (!elements.planApproval.tabButtons?.length) return;
+  const activeStatus = normalizePlanApprovalStatus(getPlanApprovalsStatus());
+  elements.planApproval.tabButtons.forEach((button) => {
+    const status = normalizePlanApprovalStatus(button.dataset.status);
+    const isActive = status === activeStatus;
+    button.classList.toggle('chip-button--active', isActive);
+    button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    const baseLabel = TEXT.planApproval.tabs?.[status] || button.dataset.label || button.textContent.trim();
+    button.dataset.label = baseLabel;
+    const count = counts[status] ?? 0;
+    button.textContent = count > 0 ? `${baseLabel} (${count})` : baseLabel;
+  });
+}
+
+function renderPlanApprovals() {
+  if (!elements.planApproval.list) return;
+  const plans = getPlanApprovals() ?? [];
+  const activeStatus = normalizePlanApprovalStatus(getPlanApprovalsStatus());
+
+  const grouped = plans.reduce(
+    (acc, plan) => {
+      const status = normalizePlanApprovalStatus(plan.status);
+      acc[status].push(plan);
+      return acc;
+    },
+    {
+      submitted: [],
+      approved: [],
+      rejected: []
+    }
+  );
+
+  renderPlanApprovalTabs({
+    submitted: grouped.submitted.length,
+    approved: grouped.approved.length,
+    rejected: grouped.rejected.length
+  });
+
+  const activePlans = grouped[activeStatus] || [];
+  const emptyState = TEXT.planApproval.empty?.[activeStatus];
+
+  renderPlanApprovalList(elements.planApproval.list, activePlans, {
+    onApprove: handleApprovePlan,
+    onReject: handleRejectPlan,
+    emptyState
+  });
+
+  if (elements.planApproval.message) {
+    setMessage(elements.planApproval.message, '', '');
+  }
+}
+
+async function loadPlanApprovals({ silent } = {}) {
+  if (!elements.planApproval.list) return;
+  const status = normalizePlanApprovalStatus(getPlanApprovalsStatus());
+  if (!silent && elements.planApproval.message) {
+    setMessage(elements.planApproval.message, TEXT.planApproval.loading, 'info');
+  }
+  try {
+    const { plans = [] } = await fetchParentPlans({ status });
+    setPlanApprovals(plans);
+    renderPlanApprovals();
+  } catch (error) {
+    if (elements.planApproval.message) {
+      setMessage(
+        elements.planApproval.message,
+        error?.message || TEXT.planApproval.loadFailed,
+        'error'
+      );
+    }
+  }
+}
+
+function handlePlanApprovalTabClick(event) {
+  const button = event.target.closest('[data-status]');
+  if (!button || !elements.planApproval.tabs?.contains(button)) {
+    return;
+  }
+  const nextStatus = normalizePlanApprovalStatus(button.dataset.status);
+  if (nextStatus === getPlanApprovalsStatus()) {
+    return;
+  }
+  setPlanApprovalsStatus(nextStatus);
+  loadPlanApprovals({ silent: false });
+}
+
+async function handleApprovePlan(planId) {
+  if (!window.confirm(TEXT.planApproval.approveConfirm)) {
+    return;
+  }
+  try {
+    const { plan } = await approveParentPlan(planId);
+    const current = getPlanApprovals().map((item) => (item.id === plan.id ? plan : item));
+    setPlanApprovals(current);
+    renderPlanApprovals();
+    if (elements.planApproval.message) {
+      setMessage(elements.planApproval.message, TEXT.planApproval.approveSuccess, 'success');
+    }
+  } catch (error) {
+    if (elements.planApproval.message) {
+      setMessage(elements.planApproval.message, error.message, 'error');
+    }
+  }
+}
+
+async function handleRejectPlan(planId) {
+  if (!window.confirm(TEXT.planApproval.rejectConfirm)) {
+    return;
+  }
+  const reason = window.prompt(TEXT.planApproval.rejectPrompt, '')?.trim();
+  try {
+    const payload = reason ? { reason } : {};
+    const { plan } = await rejectParentPlan(planId, payload);
+    const current = getPlanApprovals().map((item) => (item.id === plan.id ? plan : item));
+    setPlanApprovals(current);
+    renderPlanApprovals();
+    if (elements.planApproval.message) {
+      setMessage(elements.planApproval.message, TEXT.planApproval.rejectSuccess, 'success');
+    }
+  } catch (error) {
+    if (elements.planApproval.message) {
+      setMessage(elements.planApproval.message, error.message, 'error');
+    }
+  }
+}
+
 
 // ----- Navigation & lifecycle -----
 
@@ -2259,6 +2448,8 @@ async function changeView(view) {
   } else if (view === 'assignments') {
     await ensureAssignmentDependencies();
     await loadAssignments();
+  } else if (view === 'plan-approvals') {
+    await loadPlanApprovals({ silent: true });
   } else if (view === 'approvals') {
     await loadApprovals({ silent: true });
   } else if (view === 'notifications') {
@@ -2292,6 +2483,9 @@ function setupNavigation() {
   }
   if (elements.navAssignments) {
     elements.navAssignments.addEventListener('click', () => changeView('assignments'));
+  }
+  if (elements.navPlanApprovals) {
+    elements.navPlanApprovals.addEventListener('click', () => changeView('plan-approvals'));
   }
   if (elements.navApprovals) {
     elements.navApprovals.addEventListener('click', () => changeView('approvals'));
@@ -2421,6 +2615,8 @@ async function bootstrap() {
     } else if (initialView === 'assignments') {
       await ensureAssignmentDependencies();
       await loadAssignments();
+    } else if (initialView === 'plan-approvals') {
+      await loadPlanApprovals({ silent: true });
     } else if (initialView === 'approvals') {
       await loadApprovals({ silent: true });
     } else if (initialView === 'notifications') {
@@ -2537,6 +2733,14 @@ function main() {
   }
   if (elements.approval.tabs) {
     elements.approval.tabs.addEventListener('click', handleApprovalTabClick);
+  }
+  if (elements.planApproval.refreshBtn) {
+    elements.planApproval.refreshBtn.addEventListener('click', () =>
+      loadPlanApprovals({ silent: false })
+    );
+  }
+  if (elements.planApproval.tabs) {
+    elements.planApproval.tabs.addEventListener('click', handlePlanApprovalTabClick);
   }
 
   setupModalInteractions();

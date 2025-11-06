@@ -123,6 +123,23 @@ export function markAllNotificationsRead() {
   return request('/api/notifications/read-all', { method: 'POST' });
 }
 
+export function fetchParentPlans({ status } = {}) {
+  const params = new URLSearchParams();
+  if (status) {
+    params.set('status', status);
+  }
+  const query = params.toString();
+  return request(`/api/parent/plans${query ? `?${query}` : ''}`);
+}
+
+export function approveParentPlan(planId) {
+  return request(`/api/parent/plans/${planId}/approve`, { method: 'POST' });
+}
+
+export function rejectParentPlan(planId, payload) {
+  return request(`/api/parent/plans/${planId}/reject`, { method: 'POST', data: payload });
+}
+
 export function fetchAssignments() {
   return request('/api/student-tasks');
 }

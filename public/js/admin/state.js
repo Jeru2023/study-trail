@@ -21,6 +21,8 @@ const state = {
   editingStudentId: null,
   editingAssignmentStudentId: null,
   editingRewardId: null,
+  planApprovals: [],
+  planApprovalsStatus: 'submitted',
   analyticsDashboard: null,
   analyticsFilters: {
     groups: ['task', 'other'],
@@ -149,6 +151,22 @@ export function setApprovalsTab(tab) {
 
 export function getApprovalsTab() {
   return state.approvalsTab ?? 'pending';
+}
+
+export function setPlanApprovals(entries) {
+  state.planApprovals = entries;
+}
+
+export function getPlanApprovals() {
+  return state.planApprovals;
+}
+
+export function setPlanApprovalsStatus(status) {
+  state.planApprovalsStatus = status || 'submitted';
+}
+
+export function getPlanApprovalsStatus() {
+  return state.planApprovalsStatus || 'submitted';
 }
 
 export function setTaskOverrides(overrides) {

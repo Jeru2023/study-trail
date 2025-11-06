@@ -4,6 +4,7 @@
   --color-primary: #1abc9c;
   --color-primary-dark: #169074;
   --color-primary-light: #20d3b0;
+  --sidebar-width: 260px;
   --color-surface: #ffffff;
   --color-sidebar: #352f64;
   --color-sidebar-active: #4c3c96;
@@ -40,18 +41,22 @@ button {
 }
 
 .admin-shell {
-  display: grid;
-  grid-template-columns: 260px 1fr;
   min-height: 100vh;
 }
 
 .sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--sidebar-width);
   background: linear-gradient(180deg, var(--color-sidebar) 0%, #3c2d7f 100%);
   color: #fff;
   padding: 2.5rem 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  overflow-y: auto;
+  box-shadow: 12px 0 30px rgba(17, 24, 39, 0.16);
+  z-index: 10;
 }
 
 .sidebar__brand {
@@ -144,6 +149,8 @@ button {
   display: grid;
   grid-template-rows: auto 1fr;
   gap: 1.5rem;
+  min-height: 100vh;
+  margin-left: var(--sidebar-width);
 }
 
 .topbar {
@@ -860,6 +867,166 @@ button {
   opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+.plan-approval-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.plan-approval-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.plan-approval-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-border);
+}
+
+.plan-approval-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.plan-approval-card__title {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--color-text);
+}
+
+.plan-approval-card__subtitle {
+  margin: 0.2rem 0 0;
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.plan-approval-card__badge {
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.plan-approval-card__badge--submitted {
+  background: #fef9c3;
+  color: #92400e;
+}
+
+.plan-approval-card__badge--approved {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.plan-approval-card__badge--rejected {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.plan-approval-card__body h4 {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+  color: var(--color-text);
+}
+
+.plan-approval-card__items,
+.plan-approval-card__subtasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.plan-approval-card__group {
+  border: 1px solid rgba(67, 56, 202, 0.12);
+  border-radius: 14px;
+  background: rgba(67, 56, 202, 0.04);
+  padding: 0.85rem 1rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.plan-approval-card__group--empty {
+  justify-items: center;
+  color: var(--color-muted);
+  background: rgba(148, 163, 184, 0.12);
+  border-style: dashed;
+}
+
+.plan-approval-card__group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.plan-approval-card__group-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #4338ca;
+}
+
+.plan-approval-card__group-count {
+  min-width: 24px;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(67, 56, 202, 0.12);
+  color: #4338ca;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.plan-approval-card__subtask {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.12);
+}
+
+.plan-approval-card__subtask-index {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.plan-approval-card__subtask-title {
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+
+.plan-approval-card__rejection {
+  margin: 1rem 0 0;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 0.95rem;
+}
+
+.plan-approval-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
 }
 
 .approval-group {

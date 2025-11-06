@@ -463,9 +463,35 @@ export async function listParentDailyPlans({ parentId, status }) {
       params
     );
 
+    if (!rows.length) {
+      return [];
+    }
+
+    const planIds = rows.map((row) => row.id);
+    const [items] = await connection.query(
+      `
+        SELECT dpi.*, t.title AS task_title
+          FROM daily_plan_items dpi
+          LEFT JOIN tasks t ON t.id = dpi.task_id
+         WHERE dpi.plan_id IN (?)
+         ORDER BY dpi.plan_id, dpi.sort_order ASC, dpi.id ASC
+      `,
+      [planIds]
+    );
+
+    const groupedItems = new Map();
+    items.forEach((item) => {
+      const entry = mapPlanItemRow(item);
+      if (!groupedItems.has(item.plan_id)) {
+        groupedItems.set(item.plan_id, []);
+      }
+      groupedItems.get(item.plan_id).push(entry);
+    });
+
     return rows.map((row) =>
       mapPlanRow(row, {
-        studentName: row.student_name || null
+        studentName: row.student_name || null,
+        items: groupedItems.get(row.id) || []
       })
     );
   } finally {

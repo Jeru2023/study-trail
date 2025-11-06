@@ -33,6 +33,9 @@
           <button class="nav-item" data-view="assignments" id="navAssignments">
             <span>任务关联</span>
           </button>
+          <button class="nav-item" data-view="plan-approvals" id="navPlanApprovals">
+            <span>计划审批</span>
+          </button>
           <button class="nav-item" data-view="approvals" id="navApprovals">
             <span>打卡审批</span>
           </button>
@@ -220,6 +223,47 @@
             </div>
             <p class="page-message" id="assignmentMessage"></p>
             <section id="assignmentList" class="card"></section>
+          </section>
+
+          <section class="view" data-view="plan-approvals" hidden>
+            <div class="page-header">
+              <div>
+                <h1>计划审批</h1>
+                <p class="page-subtitle">查看并审批学生提交的每日计划。</p>
+              </div>
+              <button type="button" class="primary-button" id="planApprovalsRefreshBtn">刷新</button>
+            </div>
+            <p class="page-message" id="planApprovalsMessage"></p>
+            <div class="plan-approval-tabs" id="planApprovalsTabs" role="tablist" aria-label="学习计划审批筛选">
+              <button
+                type="button"
+                class="chip-button chip-button--active"
+                data-status="submitted"
+                role="tab"
+                aria-selected="true"
+              >
+                待审批
+              </button>
+              <button
+                type="button"
+                class="chip-button"
+                data-status="approved"
+                role="tab"
+                aria-selected="false"
+              >
+                已通过
+              </button>
+              <button
+                type="button"
+                class="chip-button"
+                data-status="rejected"
+                role="tab"
+                aria-selected="false"
+              >
+                已驳回
+              </button>
+            </div>
+            <section id="planApprovalsList" class="plan-approval-list card"></section>
           </section>
 
           <section class="view" data-view="approvals" hidden>
