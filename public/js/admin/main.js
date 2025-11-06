@@ -149,6 +149,12 @@ const PLAN_APPROVAL_TABS = {
   REJECTED: 'rejected'
 };
 
+const PLAN_APPROVAL_STATUSES = [
+  PLAN_APPROVAL_TABS.SUBMITTED,
+  PLAN_APPROVAL_TABS.APPROVED,
+  PLAN_APPROVAL_TABS.REJECTED
+];
+
 const DEFAULT_APPROVAL_TAB = APPROVAL_TABS.PENDING;
 const CONFIG_VIEWS = new Set(['students', 'tasks', 'assignments', 'rewards', 'point-presets']);
 const ADMIN_VIEWS = new Set(['analytics', 'plan-approvals', 'approvals', 'notifications']);
@@ -1158,31 +1164,29 @@ function renderPlanApprovalTabs(counts = {}) {
   });
 }
 
-function renderPlanApprovals() {
+function renderPlanApprovals(counts = null) {
   if (!elements.planApproval.list) return;
   const plans = getPlanApprovals() ?? [];
   const activeStatus = normalizePlanApprovalStatus(getPlanApprovalsStatus());
 
-  const grouped = plans.reduce(
+  const fallbackCounts = plans.reduce(
     (acc, plan) => {
       const status = normalizePlanApprovalStatus(plan.status);
-      acc[status].push(plan);
+      acc[status] = (acc[status] || 0) + 1;
       return acc;
     },
-    {
-      submitted: [],
-      approved: [],
-      rejected: []
-    }
+    {}
   );
-
+  const resolvedCounts = counts || fallbackCounts;
   renderPlanApprovalTabs({
-    submitted: grouped.submitted.length,
-    approved: grouped.approved.length,
-    rejected: grouped.rejected.length
+    submitted: resolvedCounts[PLAN_APPROVAL_TABS.SUBMITTED] ?? 0,
+    approved: resolvedCounts[PLAN_APPROVAL_TABS.APPROVED] ?? 0,
+    rejected: resolvedCounts[PLAN_APPROVAL_TABS.REJECTED] ?? 0
   });
 
-  const activePlans = grouped[activeStatus] || [];
+  const activePlans = plans.filter(
+    (plan) => normalizePlanApprovalStatus(plan.status) === activeStatus
+  );
   const emptyState = TEXT.planApproval.empty?.[activeStatus];
 
   renderPlanApprovalList(elements.planApproval.list, activePlans, {
@@ -1198,14 +1202,34 @@ function renderPlanApprovals() {
 
 async function loadPlanApprovals({ silent } = {}) {
   if (!elements.planApproval.list) return;
-  const status = normalizePlanApprovalStatus(getPlanApprovalsStatus());
+  const activeStatus = normalizePlanApprovalStatus(getPlanApprovalsStatus());
   if (!silent && elements.planApproval.message) {
     setMessage(elements.planApproval.message, TEXT.planApproval.loading, 'info');
   }
   try {
-    const { plans = [] } = await fetchParentPlans({ status });
-    setPlanApprovals(plans);
-    renderPlanApprovals();
+    const results = await Promise.all(
+      PLAN_APPROVAL_STATUSES.map(async (status) => {
+        const response = await fetchParentPlans({ status });
+        return {
+          status,
+          plans: response?.plans ?? []
+        };
+      })
+    );
+
+    const counts = results.reduce(
+      (acc, item) => ({
+        ...acc,
+        [item.status]: item.plans.length
+      }),
+      {}
+    );
+
+    const activeResult =
+      results.find((item) => item.status === activeStatus) ?? { plans: [] };
+
+    setPlanApprovals(activeResult.plans);
+    renderPlanApprovals(counts);
   } catch (error) {
     if (elements.planApproval.message) {
       setMessage(
@@ -1235,10 +1259,8 @@ async function handleApprovePlan(planId) {
     return;
   }
   try {
-    const { plan } = await approveParentPlan(planId);
-    const current = getPlanApprovals().map((item) => (item.id === plan.id ? plan : item));
-    setPlanApprovals(current);
-    renderPlanApprovals();
+    await approveParentPlan(planId);
+    await loadPlanApprovals({ silent: true });
     if (elements.planApproval.message) {
       setMessage(elements.planApproval.message, TEXT.planApproval.approveSuccess, 'success');
     }
@@ -1256,10 +1278,8 @@ async function handleRejectPlan(planId) {
   const reason = window.prompt(TEXT.planApproval.rejectPrompt, '')?.trim();
   try {
     const payload = reason ? { reason } : {};
-    const { plan } = await rejectParentPlan(planId, payload);
-    const current = getPlanApprovals().map((item) => (item.id === plan.id ? plan : item));
-    setPlanApprovals(current);
-    renderPlanApprovals();
+    await rejectParentPlan(planId, payload);
+    await loadPlanApprovals({ silent: true });
     if (elements.planApproval.message) {
       setMessage(elements.planApproval.message, TEXT.planApproval.rejectSuccess, 'success');
     }

@@ -84,6 +84,13 @@ import {
 
 const VALID_VIEWS = ['students', 'tasks', 'assignments', 'rewards', 'point-presets'];
 const DEFAULT_VIEW = 'students';
+const CONFIG_VIEWS = new Set(VALID_VIEWS);
+const ADMIN_VIEWS = new Set(['analytics', 'plan-approvals', 'approvals', 'notifications']);
+const POINT_PAGE_PATHS = {
+  bonus: '/points-bonus.html',
+  penalty: '/points-penalty.html',
+  redeem: '/points-redeem.html'
+};
 
 const sidebarRoot = qs('[data-component="parent-sidebar"]');
 const initialViewFromQuery = new URLSearchParams(window.location.search).get('view');
@@ -1344,7 +1351,27 @@ function setupNavigation() {
       }
       const target = event.target.closest('[data-view]');
       if (!target || target.disabled) return;
-      changeView(target.dataset.view);
+      const { view } = target.dataset;
+      if (!view) return;
+      if (CONFIG_VIEWS.has(view)) {
+        changeView(view);
+        return;
+      }
+      if (ADMIN_VIEWS.has(view)) {
+        window.location.href = `/admin.html?view=${view}`;
+        return;
+      }
+      if (view === 'points-bonus') {
+        window.location.href = POINT_PAGE_PATHS.bonus;
+        return;
+      }
+      if (view === 'points-penalty') {
+        window.location.href = POINT_PAGE_PATHS.penalty;
+        return;
+      }
+      if (view === 'redeem') {
+        window.location.href = POINT_PAGE_PATHS.redeem;
+      }
     });
   }
   if (elements.topbar.notificationsButton) {
