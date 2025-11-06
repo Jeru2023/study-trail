@@ -6,12 +6,39 @@
   markAllNotificationsRead
 } from '../modules/apiClient.js';
 import { qs, setMessage, toggleHidden } from '../modules/dom.js';
+import { renderStudentSidebar } from '../components/side_bar_student.js';
 import { createTaskController } from './tasks.js';
 import { createStoreController } from './store.js';
+import { createPlanController } from './plan.js';
+
+const sidebarRoot = qs('[data-component="student-sidebar"]');
+renderStudentSidebar(sidebarRoot);
+
+function pad(value) {
+  return String(value).padStart(2, '0');
+}
+
+function toDateString(date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function parseDateString(value) {
+  if (!value) return null;
+  const parts = value.split('-').map((part) => Number.parseInt(part, 10));
+  if (parts.length === 3 && parts.every((part) => Number.isInteger(part))) {
+    const [year, month, day] = parts;
+    return new Date(year, month - 1, day, 0, 0, 0, 0);
+  }
+  const fallback = new Date(value);
+  if (Number.isNaN(fallback.getTime())) {
+    return null;
+  }
+  return fallback;
+}
 
 const state = {
-  date: new Date().toISOString().slice(0, 10),
-  activeView: 'tasks',
+  date: toDateString(new Date()),
+  activeView: 'plan',
   tasks: [],
   rewards: [],
   student: null,
@@ -20,7 +47,9 @@ const state = {
   remainingCapacity: 6,
   storeLoaded: false,
   notifications: [],
-  notificationsUnread: 0
+  notificationsUnread: 0,
+  plan: null,
+  planStatus: 'draft'
 };
 
 const elements = {
@@ -28,6 +57,7 @@ const elements = {
   dateText: qs('#studentDateHeading'),
   headerTitle: qs('#studentHeaderTitle'),
   logoutBtn: qs('#logoutStudentBtn'),
+  navPlan: qs('#studentNavPlan'),
   navTasks: qs('#studentNavTasks'),
   navStore: qs('#studentNavStore'),
   navMessages: qs('#studentNavMessages'),
@@ -39,6 +69,25 @@ const elements = {
   notificationsMessage: qs('#studentNotificationsMessage'),
   notificationsMarkAllBtn: qs('#studentMarkAllNotifications')
 };
+
+const planController = createPlanController(
+  state,
+  {
+    section: qs('#studentPlanSection'),
+    hint: qs('#studentPlanHint'),
+    statusBadge: qs('#studentPlanStatusBadge'),
+    banner: qs('#studentPlanBanner'),
+    message: qs('#studentPlanMessage'),
+    planForm: qs('#studentPlanForm'),
+    tabs: qs('#planTaskTabs'),
+    titleInput: qs('#planItemTitle'),
+    addButton: qs('#planAddButton'),
+    emptyHint: qs('#planEmptyHint'),
+    list: qs('#planItemList'),
+    submitButton: qs('#planSubmitButton')
+  },
+  showPageMessage
+);
 
 const taskController = createTaskController(state, {
   container: qs('#taskContainer'),
@@ -62,7 +111,7 @@ const storeController = createStoreController(state, {
 });
 
 function formatDateLabel(dateString) {
-  const date = new Date(`${dateString}T00:00:00`);
+  const date = parseDateString(dateString) || new Date();
   return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: 'long',
@@ -222,10 +271,10 @@ function getActiveView() {
 }
 
 function highlightNav(view) {
-  [elements.navTasks, elements.navStore, elements.navMessages].forEach((button) => {
+  [elements.navPlan, elements.navTasks, elements.navStore, elements.navMessages].forEach((button) => {
     if (!button) return;
     const active = button.dataset.view === view;
-    button.classList.toggle('student-nav__item--active', active);
+    button.classList.toggle('nav-item--active', active);
   });
 }
 
@@ -238,12 +287,16 @@ function showView(view) {
 
 function updateHeaderTitle(view) {
   if (!elements.headerTitle) return;
-  if (view === 'store') {
+  if (view === 'plan') {
+    elements.headerTitle.textContent = '每日计划';
+  } else if (view === 'tasks') {
+    elements.headerTitle.textContent = '每日打卡';
+  } else if (view === 'store') {
     elements.headerTitle.textContent = '积分商城';
   } else if (view === 'messages') {
     elements.headerTitle.textContent = '消息中心';
   } else {
-    elements.headerTitle.textContent = '每日任务';
+    elements.headerTitle.textContent = '每日打卡';
   }
 }
 
@@ -257,7 +310,9 @@ async function changeView(view) {
   state.activeView = view;
   updateHeaderTitle(view);
   showView(view);
-  if (view === 'store') {
+  if (view === 'plan') {
+    await planController.loadPlan({ silent: true });
+  } else if (view === 'store') {
     await storeController.loadStore({ silent: state.storeLoaded });
   } else if (view === 'messages') {
     await loadNotifications({ markRead: true });
@@ -265,6 +320,12 @@ async function changeView(view) {
 }
 
 function registerEvents() {
+  if (elements.navPlan) {
+    elements.navPlan.addEventListener('click', (event) => {
+      event.preventDefault();
+      changeView('plan');
+    });
+  }
   if (elements.navTasks) {
     elements.navTasks.addEventListener('click', (event) => {
       event.preventDefault();
@@ -309,6 +370,7 @@ function registerEvents() {
     });
   }
 
+  planController.registerEvents();
   taskController.registerEvents();
 
   elements.logoutBtn?.addEventListener('click', async () => {
@@ -348,6 +410,7 @@ async function bootstrap() {
   updateDateHeader();
   updateHeaderTitle(getActiveView());
   showView(getActiveView());
+  await planController.loadPlan();
   await taskController.loadTasks();
   await storeController.loadStore({ silent: true });
 }

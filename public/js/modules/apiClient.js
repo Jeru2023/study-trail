@@ -155,6 +155,19 @@ export function completeStudentSubtask(entryId, formData) {
   });
 }
 
+export function fetchStudentPlan(date) {
+  const search = date ? `?date=${encodeURIComponent(date)}` : '';
+  return request(`/api/student/plans${search}`);
+}
+
+export function saveStudentPlan(payload) {
+  return request('/api/student/plans', { method: 'POST', data: payload });
+}
+
+export function submitStudentPlan(payload) {
+  return request('/api/student/plans/submit', { method: 'POST', data: payload });
+}
+
 export function fetchApprovalEntries(date) {
   const search = date ? `?date=${encodeURIComponent(date)}` : '';
   return request(`/api/approvals${search}`);

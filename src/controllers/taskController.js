@@ -112,8 +112,12 @@ function parseTaskPayload(body) {
     throw new Error('DATE_RANGE_INVALID');
   }
 
-  payload.startDate = startDate ? startDate.toISOString().slice(0, 10) : null;
-  payload.endDate = endDate ? endDate.toISOString().slice(0, 10) : null;
+  const pad = (value) => String(value).padStart(2, '0');
+  const toDateString = (date) =>
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
+  payload.startDate = startDate ? toDateString(startDate) : null;
+  payload.endDate = endDate ? toDateString(endDate) : null;
 
   return payload;
 }

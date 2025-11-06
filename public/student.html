@@ -4,38 +4,16 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>学迹 · 今日打卡</title>
-    <link rel="stylesheet" href="/css/student.css" />
+    <link rel="stylesheet" href="/css/student.css?v=20241106b" />
   </head>
   <body>
     <div class="student-shell">
-      <aside class="student-sidebar">
-        <div class="student-sidebar__brand">
-          <span class="student-sidebar__logo">学</span>
-          <div class="student-sidebar__meta">
-            <strong id="studentGreeting"></strong>
-            <span class="student-sidebar__tag">继续保持好习惯</span>
-          </div>
-        </div>
-        <nav class="student-nav">
-          <button type="button" class="student-nav__item student-nav__item--active" data-view="tasks" id="studentNavTasks">
-            每日任务
-          </button>
-          <button type="button" class="student-nav__item" data-view="store" id="studentNavStore">
-            积分商城
-          </button>
-          <button type="button" class="student-nav__item" data-view="messages" id="studentNavMessages">
-            消息中心
-          </button>
-        </nav>
-        <div class="student-sidebar__footer">
-          <button type="button" class="ghost-button" id="logoutStudentBtn">退出登录</button>
-        </div>
-      </aside>
+      <aside class="sidebar sidebar--student" data-component="student-sidebar"></aside>
 
       <div class="student-workspace">
         <header class="student-header">
           <div>
-            <h1 id="studentHeaderTitle">每日任务</h1>
+            <h1 id="studentHeaderTitle">每日计划</h1>
             <p class="student-header__hint" id="studentDateHeading">--</p>
           </div>
           <div class="student-header__actions">
@@ -48,7 +26,42 @@
         <main class="student-content">
           <p class="page-message" id="studentPageMessage"></p>
 
-          <section class="student-view" data-view="tasks">
+          <section class="student-view" data-view="plan">
+            <section class="student-plan" id="studentPlanSection">
+              <header class="student-plan__header">
+                <p class="student-plan__hint" id="studentPlanHint">请根据各项任务安排今日的子任务。</p>
+                <span class="plan-status-badge" id="studentPlanStatusBadge" data-status="draft">草稿</span>
+              </header>
+              <div class="student-plan__banner" id="studentPlanBanner" hidden></div>
+              <nav class="student-plan__tabs" id="planTaskTabs" role="tablist" aria-label="任务切换"></nav>
+              <p class="plan-message" id="studentPlanMessage"></p>
+              <form class="student-plan__form" id="studentPlanForm">
+                <div class="student-plan__grid" role="group" aria-label="添加子任务">
+                  <label class="form-field student-plan__field">
+                    <span class="sr-only" id="planTaskTitle">子任务内容</span>
+                    <input
+                      type="text"
+                      id="planItemTitle"
+                      name="title"
+                      maxlength="120"
+                      placeholder="输入子任务内容"
+                      required
+                    />
+                  </label>
+                  <div class="student-plan__inline-action">
+                    <button type="submit" class="primary-button" id="planAddButton">添加子任务</button>
+                  </div>
+                </div>
+              </form>
+              <div class="student-plan__empty" id="planEmptyHint">选择上方任务后，开始添加子任务。</div>
+              <ul class="student-plan__list" id="planItemList"></ul>
+              <div class="student-plan__footer">
+                <button type="button" class="primary-button" id="planSubmitButton">提交家长审核</button>
+              </div>
+            </section>
+          </section>
+
+          <section class="student-view" data-view="tasks" hidden>
             <section id="taskContainer" class="task-container"></section>
             <p class="empty-hint" id="emptyHint" hidden>今日还没有分配任务，先休息一下吧～</p>
           </section>
@@ -127,6 +140,6 @@
       </div>
     </div>
 
-    <script type="module" src="/js/student/main.js"></script>
+    <script type="module" src="/js/student/main.js?v=20241106b"></script>
   </body>
 </html>

@@ -106,13 +106,30 @@ export async function deleteTask(parentId, taskId) {
   return result.affectedRows > 0;
 }
 
+function pad(value) {
+  return String(value).padStart(2, '0');
+}
+
 function normalizeDateInput(value) {
   if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const [, year, month, day] = match;
+    const candidate = new Date(Number(year), Number(month) - 1, Number(day), 0, 0, 0, 0);
+    if (Number.isNaN(candidate.getTime())) {
+      return null;
+    }
+    return `${candidate.getFullYear()}-${pad(candidate.getMonth() + 1)}-${pad(candidate.getDate())}`;
+  }
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
     return null;
   }
-  return date.toISOString().slice(0, 10);
+  return `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())}`;
 }
 
 function mapOverrideRow(row) {

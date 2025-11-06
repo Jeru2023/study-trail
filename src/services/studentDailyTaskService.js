@@ -17,19 +17,34 @@ async function safeCreateNotification(client, payload) {
   }
 }
 
-function ensureValidDate(input) {
-  if (!input) {
-    return new Date();
+function pad(value) {
+  return String(value).padStart(2, '0');
+}
+
+function formatDate(date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function parseDateInput(value) {
+  if (!value) return new Date();
+  const trimmed = String(value).trim();
+  if (!trimmed) return new Date();
+
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const [, year, month, day] = match;
+    const candidate = new Date(Number(year), Number(month) - 1, Number(day), 0, 0, 0, 0);
+    if (Number.isNaN(candidate.getTime())) {
+      throw new Error('INVALID_DATE');
+    }
+    return candidate;
   }
-  const parsed = new Date(input);
+
+  const parsed = new Date(trimmed);
   if (Number.isNaN(parsed.getTime())) {
     throw new Error('INVALID_DATE');
   }
   return parsed;
-}
-
-function formatDate(date) {
-  return date.toISOString().slice(0, 10);
 }
 
 function normalizeScheduleType(value) {
@@ -222,7 +237,7 @@ async function fetchFilesForEntryIds(entryIds) {
 
 export async function listDailyTasksForStudent(studentId, dateInput) {
   await ensureTaskSchedulingArtifacts();
-  const targetDate = ensureValidDate(dateInput);
+  const targetDate = parseDateInput(dateInput);
   const dateString = formatDate(targetDate);
 
   const [assignments] = await pool.query(
@@ -316,7 +331,7 @@ async function getParentEntryRow(parentId, entryId) {
 }
 
 export async function listEntriesForParent(parentId, dateInput) {
-  const targetDate = ensureValidDate(dateInput);
+  const targetDate = parseDateInput(dateInput);
   const dateString = formatDate(targetDate);
 
   const [rows] = await pool.query(
@@ -357,7 +372,7 @@ export async function createSubtaskEntry({ studentId, taskId, entryDate, title, 
     throw new Error('TITLE_REQUIRED');
   }
 
-  const dateValue = ensureValidDate(entryDate);
+  const dateValue = parseDateInput(entryDate);
   const dateString = formatDate(dateValue);
   const assignment = await ensureAssignment(studentId, taskId);
   assertWithinDateRange(dateValue, assignment.start_date, assignment.end_date);

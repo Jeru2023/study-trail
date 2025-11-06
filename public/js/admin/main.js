@@ -36,6 +36,7 @@
   logout
 } from '../modules/apiClient.js';
 import { qs, qsa, setMessage, disableForm, toggleHidden } from '../modules/dom.js';
+import { renderParentSidebar } from '../components/side_bar_parent.js';
 import {
   getActiveView,
   getEditingStudentId,
@@ -126,6 +127,9 @@ import {
   renderAnalyticsStudentSummary,
   renderAnalyticsHistory
 } from './analytics.js';
+
+const sidebarRoot = qs('[data-component="parent-sidebar"]');
+renderParentSidebar(sidebarRoot);
 
 const TEXT = {
   task: {

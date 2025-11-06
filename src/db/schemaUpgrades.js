@@ -107,6 +107,58 @@ async function applyTaskScheduleOverrideTable() {
   await applyTaskScheduleOverrideIndexes();
 }
 
+async function dropLegacyDailyPlanTables() {
+  await pool.query('DROP TABLE IF EXISTS student_task_daily_plan_items');
+  await pool.query('DROP TABLE IF EXISTS student_task_daily_plans');
+}
+
+async function applyDailyPlanTables() {
+  await dropLegacyDailyPlanTables();
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS daily_plans (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      parent_id BIGINT UNSIGNED NOT NULL,
+      student_id BIGINT UNSIGNED NOT NULL,
+      plan_date DATE NOT NULL,
+      status ENUM('draft','submitted','approved','rejected') NOT NULL DEFAULT 'draft',
+      submitted_at DATETIME NULL,
+      approved_at DATETIME NULL,
+      approved_by BIGINT UNSIGNED NULL,
+      rejected_at DATETIME NULL,
+      rejected_by BIGINT UNSIGNED NULL,
+      rejection_reason VARCHAR(255) NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uniq_daily_plan_student_date (student_id, plan_date),
+      KEY idx_daily_plans_parent_date (parent_id, plan_date),
+      KEY idx_daily_plans_status (status),
+      CONSTRAINT fk_daily_plans_parent FOREIGN KEY (parent_id) REFERENCES users (id) ON DELETE CASCADE,
+      CONSTRAINT fk_daily_plans_student FOREIGN KEY (student_id) REFERENCES users (id) ON DELETE CASCADE,
+      CONSTRAINT fk_daily_plans_approved_by FOREIGN KEY (approved_by) REFERENCES users (id) ON DELETE SET NULL,
+      CONSTRAINT fk_daily_plans_rejected_by FOREIGN KEY (rejected_by) REFERENCES users (id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS daily_plan_items (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      plan_id BIGINT UNSIGNED NOT NULL,
+      task_id BIGINT UNSIGNED NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_daily_plan_items_plan (plan_id),
+      KEY idx_daily_plan_items_task (task_id),
+      KEY idx_daily_plan_items_plan_sort (plan_id, sort_order),
+      CONSTRAINT fk_daily_plan_items_plan FOREIGN KEY (plan_id) REFERENCES daily_plans (id) ON DELETE CASCADE,
+      CONSTRAINT fk_daily_plan_items_task FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+}
+
 async function applyNotificationsTable() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS notifications (
@@ -130,6 +182,7 @@ export function ensureTaskSchedulingArtifacts() {
     ensureSchedulingPromise = (async () => {
       await applyTaskScheduleColumn();
       await applyTaskScheduleOverrideTable();
+      await applyDailyPlanTables();
       await applyNotificationsTable();
     })().catch((error) => {
       ensureSchedulingPromise = null;
