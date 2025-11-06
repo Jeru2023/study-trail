@@ -19,6 +19,25 @@ async function columnExists(table, column) {
   return rows.length > 0;
 }
 
+async function constraintExists(table, constraintName) {
+  const [rows] = await pool.query(
+    `
+      SELECT CONSTRAINT_NAME
+        FROM information_schema.TABLE_CONSTRAINTS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = ?
+         AND CONSTRAINT_NAME = ?
+    `,
+    [table, constraintName]
+  );
+  return rows.length > 0;
+}
+
+async function indexExists(table, indexName) {
+  const [rows] = await pool.query(`SHOW INDEX FROM ${table} WHERE Key_name = ?`, [indexName]);
+  return rows.length > 0;
+}
+
 async function dropIndexIfExists(table, indexName) {
   try {
     await pool.query(`ALTER TABLE ${table} DROP INDEX ${indexName}`);
@@ -177,12 +196,43 @@ async function applyNotificationsTable() {
   `);
 }
 
+async function applyStudentTaskEntryPlanItemColumn() {
+  if (!(await columnExists('student_task_entries', 'plan_item_id'))) {
+    await pool.query(
+      'ALTER TABLE student_task_entries ADD COLUMN plan_item_id BIGINT UNSIGNED NULL AFTER task_id'
+    );
+  }
+  if (!(await indexExists('student_task_entries', 'uniq_student_task_entries_plan_item'))) {
+    try {
+      await pool.query(
+        'ALTER TABLE student_task_entries ADD UNIQUE KEY uniq_student_task_entries_plan_item (plan_item_id)'
+      );
+    } catch (error) {
+      if (error.code !== 'ER_DUP_KEYNAME') {
+        throw error;
+      }
+    }
+  }
+  if (!(await constraintExists('student_task_entries', 'fk_student_task_entries_plan_item'))) {
+    try {
+      await pool.query(
+        'ALTER TABLE student_task_entries ADD CONSTRAINT fk_student_task_entries_plan_item FOREIGN KEY (plan_item_id) REFERENCES daily_plan_items (id) ON DELETE SET NULL'
+      );
+    } catch (error) {
+      if (error.code !== 'ER_CANT_CREATE_TABLE' && error.code !== 'ER_DUP_KEY') {
+        throw error;
+      }
+    }
+  }
+}
+
 export function ensureTaskSchedulingArtifacts() {
   if (!ensureSchedulingPromise) {
     ensureSchedulingPromise = (async () => {
       await applyTaskScheduleColumn();
       await applyTaskScheduleOverrideTable();
       await applyDailyPlanTables();
+      await applyStudentTaskEntryPlanItemColumn();
       await applyNotificationsTable();
     })().catch((error) => {
       ensureSchedulingPromise = null;

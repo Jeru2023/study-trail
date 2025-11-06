@@ -1,9 +1,4 @@
-import {
-  createStudentSubtask,
-  fetchStudentDailyTasks,
-  startStudentSubtask,
-  completeStudentSubtask
-} from '../modules/apiClient.js';
+import { fetchStudentDailyTasks, startStudentSubtask, completeStudentSubtask } from '../modules/apiClient.js';
 import { disableForm, setMessage, toggleHidden } from '../modules/dom.js';
 
 const MAX_PROOFS = 6;
@@ -279,12 +274,13 @@ export function createTaskController(state, elements, showPageMessage) {
     }
 
     card.appendChild(header);
+    card.appendChild(header);
     card.appendChild(meta);
 
     if (!task.subtasks.length) {
       const empty = document.createElement('p');
       empty.className = 'subtask-empty';
-      empty.textContent = '今天还没有开始这个任务，马上添加子任务记录吧！';
+      empty.textContent = '今日计划中暂无该任务的子任务，请先查看每日计划。';
       card.appendChild(empty);
     } else {
       const list = document.createElement('ul');
@@ -295,55 +291,33 @@ export function createTaskController(state, elements, showPageMessage) {
       card.appendChild(list);
     }
 
-    const form = document.createElement('form');
-    form.className = 'subtask-form';
-    form.dataset.taskId = task.taskId;
-
-    const fieldset = document.createElement('div');
-    fieldset.className = 'subtask-form__fields';
-
-    const titleInput = document.createElement('input');
-    titleInput.type = 'text';
-    titleInput.name = 'title';
-    titleInput.placeholder = '记录今天做了什么（例如：朗读第三课）';
-    titleInput.required = true;
-
-    const notesInput = document.createElement('textarea');
-    notesInput.name = 'notes';
-    notesInput.rows = 2;
-    notesInput.placeholder = '也可以写下你今天的感受和收获（可选）';
-
-    fieldset.appendChild(titleInput);
-    fieldset.appendChild(notesInput);
-
-    const actions = document.createElement('div');
-    actions.className = 'subtask-form__actions';
-
-    const submitButton = document.createElement('button');
-    submitButton.type = 'submit';
-    submitButton.className = 'primary-button';
-    submitButton.textContent = '添加子任务';
-
-    actions.appendChild(submitButton);
-
-    form.appendChild(fieldset);
-    form.appendChild(actions);
-
-    card.appendChild(form);
     return card;
   }
 
   function renderTasks() {
     clearContainer();
-    toggleHidden(elements.emptyHint, state.tasks.length !== 0);
+    const hasTasks = state.tasks.length > 0;
+    if (!hasTasks) {
+      if (elements.emptyHint) {
+        let message = '今日暂无待完成的任务，继续保持哦～';
+        const status = state.planStatus;
+        if (status === 'draft') {
+          message = '请先在“每日计划”中制定今日计划，再来完成打卡。';
+        } else if (status === 'submitted') {
+          message = '每日计划正在等待家长审批，请稍后再来打卡。';
+        } else if (status === 'rejected') {
+          message = '每日计划被驳回，请先根据反馈调整后重新提交。';
+        }
+        elements.emptyHint.textContent = message;
+        toggleHidden(elements.emptyHint, false);
+      }
+      return;
+    }
 
+    toggleHidden(elements.emptyHint, true);
     state.tasks.forEach((task) => {
       elements.container?.appendChild(renderTask(task));
     });
-
-    if (!state.tasks.length) {
-      toggleHidden(elements.emptyHint, false);
-    }
   }
 
   function updateProofHint(remaining) {
@@ -459,49 +433,23 @@ export function createTaskController(state, elements, showPageMessage) {
       state.tasks = normalizeTasks(tasks ?? []);
       renderTasks();
       if (!state.tasks.length) {
-        showPageMessage('今日暂无待完成的任务～', 'info');
-      } else {
-        showPageMessage('', '');
+        const status = state.planStatus;
+        if (status === 'draft') {
+          showPageMessage('请先完成“每日计划”后再来打卡。', 'info');
+        } else if (status === 'submitted') {
+          showPageMessage('每日计划正在等待家长审批，请稍后再试。', 'info');
+        } else if (status === 'rejected') {
+          showPageMessage('每日计划被驳回，请先根据家长反馈调整计划。', 'error');
+        } else {
+          showPageMessage('今日暂无待完成的任务～', 'info');
+        }
+        return;
       }
+      showPageMessage('', '');
     } catch (error) {
       state.tasks = [];
       renderTasks();
       showPageMessage(error.message, 'error');
-    }
-  }
-
-  async function handleSubtaskFormSubmit(event) {
-    if (!event.target.matches('.subtask-form')) return;
-    event.preventDefault();
-
-    const form = event.target;
-    const taskId = Number.parseInt(form.dataset.taskId, 10);
-    const titleInput = form.elements.title;
-    const notesInput = form.elements.notes;
-    const title = titleInput.value.trim();
-    const notes = notesInput.value.trim();
-
-    if (!title) {
-      showPageMessage('请先填写子任务内容。', 'error');
-      titleInput.focus();
-      return;
-    }
-
-    try {
-      disableForm(form, true);
-      const { entry } = await createStudentSubtask(taskId, {
-        title,
-        notes: notes || undefined,
-        entryDate: state.date
-      });
-      updateSubtaskInState(entry);
-      renderTasks();
-      showPageMessage('已添加子任务，开始行动吧！', 'success');
-    } catch (error) {
-      showPageMessage(error.message, 'error');
-    } finally {
-      disableForm(form, false);
-      form.reset();
     }
   }
 
@@ -589,7 +537,6 @@ export function createTaskController(state, elements, showPageMessage) {
   }
 
   function registerEvents() {
-    elements.container?.addEventListener('submit', handleSubtaskFormSubmit);
     elements.container?.addEventListener('click', handleTaskContainerClick);
 
     elements.completeForm?.addEventListener('submit', handleCompleteFormSubmit);

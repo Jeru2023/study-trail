@@ -143,6 +143,8 @@ function assertWithinDateRange(entryDate, startDate, endDate) {
   }
 }
 
+const PLAN_STATUS_APPROVED = 'approved';
+
 function mapEntryRow(row, files = [], meta = {}) {
   const sortedFiles = files.sort((a, b) => a.created_at.localeCompare(b.created_at));
   const proofs = sortedFiles.map((file) => ({
@@ -158,6 +160,7 @@ function mapEntryRow(row, files = [], meta = {}) {
     parentId: row.parent_id,
     studentId: row.student_id,
     taskId: row.task_id,
+    planItemId: row.plan_item_id || null,
     entryDate: row.entry_date,
     title: row.title,
     notes: row.notes,
@@ -183,12 +186,12 @@ async function fetchEntries(studentId, entryDate, taskIds) {
   }
 
   const [entries] = await pool.query(
-    `SELECT *
-       FROM student_task_entries
-      WHERE student_id = ?
-        AND entry_date = ?
-        AND task_id IN (?)
-      ORDER BY created_at ASC`,
+    `SELECT ste.*
+       FROM student_task_entries ste
+      WHERE ste.student_id = ?
+        AND ste.entry_date = ?
+        AND ste.task_id IN (?)
+      ORDER BY ste.created_at ASC`,
     [studentId, entryDate, taskIds]
   );
 
@@ -206,6 +209,116 @@ async function fetchEntries(studentId, entryDate, taskIds) {
   );
 
   return { entries, files };
+}
+
+async function fetchApprovedPlanWithItems(connection, studentId, planDate) {
+  const [rows] = await connection.query(
+    `
+      SELECT dp.id AS plan_id,
+             dp.parent_id,
+             dp.student_id,
+             dp.plan_date,
+             dp.status,
+             dpi.id AS item_id,
+             dpi.task_id,
+             dpi.title AS item_title,
+             dpi.sort_order
+        FROM daily_plans dp
+        LEFT JOIN daily_plan_items dpi ON dpi.plan_id = dp.id
+       WHERE dp.student_id = ?
+         AND dp.plan_date = ?
+         AND dp.status = ?
+       ORDER BY dpi.sort_order ASC, dpi.id ASC
+    `,
+    [studentId, planDate, PLAN_STATUS_APPROVED]
+  );
+
+  if (!rows.length) {
+    return null;
+  }
+
+  const plan = {
+    id: rows[0].plan_id,
+    parentId: rows[0].parent_id,
+    studentId: rows[0].student_id,
+    planDate: rows[0].plan_date,
+    status: rows[0].status,
+    items: []
+  };
+
+  rows.forEach((row) => {
+    if (row.item_id) {
+      plan.items.push({
+        id: row.item_id,
+        taskId: row.task_id,
+        title: row.item_title,
+        sortOrder: row.sort_order
+      });
+    }
+  });
+
+  return plan;
+}
+
+async function ensurePlanEntriesForPlan(connection, plan) {
+  if (!plan || plan.status !== PLAN_STATUS_APPROVED || !plan.items.length) {
+    return;
+  }
+
+  for (const item of plan.items) {
+    const [[existing]] = await connection.query(
+      `
+        SELECT id, title, status
+          FROM student_task_entries
+         WHERE student_id = ?
+           AND task_id = ?
+           AND entry_date = ?
+           AND (plan_item_id = ? OR plan_item_id IS NULL)
+         ORDER BY plan_item_id IS NULL DESC, created_at ASC
+         LIMIT 1
+      `,
+      [plan.studentId, item.taskId, plan.planDate, item.id]
+    );
+
+    let entryId = existing?.id ?? null;
+
+    if (existing) {
+      if (existing.plan_item_id !== item.id) {
+        await connection.query(
+          `
+            UPDATE student_task_entries
+               SET plan_item_id = ?,
+                   title = ?,
+                   review_status = CASE WHEN review_status = 'approved' THEN review_status ELSE 'pending' END,
+                   updated_at = CURRENT_TIMESTAMP
+             WHERE id = ?
+          `,
+          [item.id, item.title, existing.id]
+        );
+      } else if (existing.status === 'pending' && existing.title !== item.title) {
+        await connection.query(
+          `
+            UPDATE student_task_entries
+               SET title = ?, updated_at = CURRENT_TIMESTAMP
+             WHERE id = ?
+          `,
+          [item.title, existing.id]
+        );
+      }
+      entryId = existing.id;
+    } else {
+      const [result] = await connection.query(
+        `
+          INSERT INTO student_task_entries
+            (parent_id, student_id, task_id, entry_date, title, status, review_status, plan_item_id, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, 'pending', 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        `,
+        [plan.parentId, plan.studentId, item.taskId, plan.planDate, item.title, item.id]
+      );
+      entryId = result.insertId;
+    }
+
+  }
 }
 
 function groupFilesByEntry(files) {
@@ -240,6 +353,17 @@ export async function listDailyTasksForStudent(studentId, dateInput) {
   const targetDate = parseDateInput(dateInput);
   const dateString = formatDate(targetDate);
 
+  let plan = null;
+  const connection = await pool.getConnection();
+  try {
+    plan = await fetchApprovedPlanWithItems(connection, studentId, dateString);
+    if (plan) {
+      await ensurePlanEntriesForPlan(connection, plan);
+    }
+  } finally {
+    connection.release();
+  }
+
   const [assignments] = await pool.query(
     `SELECT st.task_id,
             st.parent_id,
@@ -259,14 +383,62 @@ export async function listDailyTasksForStudent(studentId, dateInput) {
     [studentId, dateString, dateString]
   );
 
+  const assignmentMap = new Map(assignments.map((assignment) => [assignment.task_id, assignment]));
+
   let scheduleType = 'weekday';
   if (assignments.length > 0) {
     scheduleType = await resolveScheduleType(assignments[0].parent_id, dateString);
   }
 
-  const activeAssignments = assignments.filter(
-    (assignment) => normalizeScheduleType(assignment.schedule_type) === scheduleType
-  );
+  let activeAssignments;
+  if (plan && plan.items.length) {
+    const planTaskIds = plan.items.map((item) => item.taskId);
+    const set = new Set();
+    activeAssignments = [];
+
+    planTaskIds.forEach((taskId) => {
+      if (set.has(taskId)) {
+        return;
+      }
+      const assignment = assignmentMap.get(taskId);
+      if (assignment) {
+        activeAssignments.push(assignment);
+        set.add(taskId);
+      }
+    });
+
+    if (activeAssignments.length < planTaskIds.length) {
+      const missingIds = planTaskIds.filter((taskId) => !assignmentMap.has(taskId));
+      if (missingIds.length) {
+        const [extraTasks] = await pool.query(
+          `
+            SELECT id AS task_id,
+                   parent_id,
+                   title,
+                   description,
+                   points,
+                   schedule_type,
+                   start_date,
+                   end_date
+              FROM tasks
+             WHERE id IN (?)
+          `,
+          [missingIds]
+        );
+
+        extraTasks.forEach((task) => {
+          if (!set.has(task.task_id)) {
+            activeAssignments.push(task);
+            set.add(task.task_id);
+          }
+        });
+      }
+    }
+  } else {
+    activeAssignments = assignments.filter(
+      (assignment) => normalizeScheduleType(assignment.schedule_type) === scheduleType
+    );
+  }
 
   const taskIds = activeAssignments.map((assignment) => assignment.task_id);
   const { entries, files } = await fetchEntries(studentId, dateString, taskIds);
