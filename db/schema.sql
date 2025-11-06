@@ -185,6 +185,19 @@ CREATE TABLE IF NOT EXISTS reward_items (
   CONSTRAINT fk_reward_items_parent FOREIGN KEY (parent_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS point_presets (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  parent_id BIGINT UNSIGNED NOT NULL,
+  name VARCHAR(150) NOT NULL,
+  points INT UNSIGNED NOT NULL DEFAULT 0,
+  direction ENUM('bonus', 'penalty') NOT NULL DEFAULT 'bonus',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_point_presets_parent (parent_id),
+  CONSTRAINT fk_point_presets_parent FOREIGN KEY (parent_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS student_points_history (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   parent_id BIGINT UNSIGNED NOT NULL,

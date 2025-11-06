@@ -1,8 +1,12 @@
 import {
   adjustStudentPoints,
+  createPointPreset,
+  deletePointPreset,
+  listPointPresets,
   listStudentLedgerEntries,
   listStudentPointsSummary,
-  redeemRewardForStudent
+  redeemRewardForStudent,
+  updatePointPreset
 } from '../services/pointService.js';
 
 const TEXT = {
@@ -19,7 +23,14 @@ const TEXT = {
   rewardNotFound: '\u5956\u52b1\u4e0d\u53ef\u7528',
   rewardInactive: '\u5956\u52b1\u672a\u4e0a\u67b6',
   rewardStockShortage: '\u5956\u52b1\u5e93\u5b58\u4e0d\u8db3',
-  invalidQuantity: '\u8bf7\u586b\u5199\u5408\u6cd5\u7684\u5151\u6362\u6570\u91cf'
+  invalidQuantity: '\u8bf7\u586b\u5199\u5408\u6cd5\u7684\u5151\u6362\u6570\u91cf',
+  presetLoadFailed: '\u83b7\u53d6\u79ef\u5206\u6a21\u677f\u5931\u8d25',
+  presetSaveFailed: '\u4fdd\u5b58\u79ef\u5206\u6a21\u677f\u5931\u8d25',
+  presetDeleteFailed: '\u5220\u9664\u79ef\u5206\u6a21\u677f\u5931\u8d25',
+  presetNotFound: '\u672a\u627e\u5230\u79ef\u5206\u6a21\u677f',
+  presetNameRequired: '\u8bf7\u586b\u5199\u6a21\u677f\u540d\u79f0',
+  presetPointsInvalid: '\u8bf7\u586b\u5199\u5927\u4e8e\u7b49\u4e8e 0 \u7684\u6574\u6570\u5206\u503c',
+  presetDirectionInvalid: '\u8bf7\u9009\u62e9\u52a0\u5206\u6216\u6263\u5206'
 };
 
 function ensureParentSession(req, res) {
@@ -156,5 +167,129 @@ export async function postRedeemReward(req, res) {
       return res.status(400).json({ message: TEXT.insufficientPoints });
     }
     return res.status(500).json({ message: TEXT.redeemFailed, detail: error.message });
+  }
+}
+
+function parsePointPresetPayload(body) {
+  const name = String(body?.name ?? body?.title ?? '').trim();
+  if (!name) {
+    throw new Error('PRESET_NAME_REQUIRED');
+  }
+
+  const pointsValue = Number.parseInt(body?.points ?? body?.value ?? '', 10);
+  if (!Number.isInteger(pointsValue) || pointsValue < 0) {
+    throw new Error('PRESET_POINTS_INVALID');
+  }
+
+  const directionRaw = String(body?.direction ?? '').trim().toLowerCase();
+  if (directionRaw !== 'bonus' && directionRaw !== 'penalty') {
+    throw new Error('PRESET_DIRECTION_INVALID');
+  }
+
+  return {
+    name,
+    points: pointsValue,
+    direction: directionRaw
+  };
+}
+
+export async function getPointPresets(req, res) {
+  const sessionUser = ensureParentSession(req, res);
+  if (!sessionUser) return;
+
+  try {
+    const presets = await listPointPresets(sessionUser.id);
+    res.json({ presets });
+  } catch (error) {
+    res.status(500).json({ message: TEXT.presetLoadFailed, detail: error.message });
+  }
+}
+
+export async function postPointPreset(req, res) {
+  const sessionUser = ensureParentSession(req, res);
+  if (!sessionUser) return;
+
+  try {
+    const payload = parsePointPresetPayload(req.body);
+    const preset = await createPointPreset({
+      parentId: sessionUser.id,
+      ...payload
+    });
+    res.status(201).json({ preset });
+  } catch (error) {
+    if (error.message === 'PRESET_NAME_REQUIRED') {
+      res.status(400).json({ message: TEXT.presetNameRequired });
+      return;
+    }
+    if (error.message === 'PRESET_POINTS_INVALID') {
+      res.status(400).json({ message: TEXT.presetPointsInvalid });
+      return;
+    }
+    if (error.message === 'PRESET_DIRECTION_INVALID') {
+      res.status(400).json({ message: TEXT.presetDirectionInvalid });
+      return;
+    }
+    res.status(500).json({ message: TEXT.presetSaveFailed, detail: error.message });
+  }
+}
+
+export async function putPointPreset(req, res) {
+  const sessionUser = ensureParentSession(req, res);
+  if (!sessionUser) return;
+
+  const presetId = Number.parseInt(String(req.params.presetId).trim(), 10);
+  if (!Number.isInteger(presetId) || presetId <= 0) {
+    res.status(400).json({ message: TEXT.presetNotFound });
+    return;
+  }
+
+  try {
+    const payload = parsePointPresetPayload(req.body);
+    const preset = await updatePointPreset({
+      parentId: sessionUser.id,
+      presetId,
+      ...payload
+    });
+    res.json({ preset });
+  } catch (error) {
+    if (error.message === 'PRESET_NAME_REQUIRED') {
+      res.status(400).json({ message: TEXT.presetNameRequired });
+      return;
+    }
+    if (error.message === 'PRESET_POINTS_INVALID') {
+      res.status(400).json({ message: TEXT.presetPointsInvalid });
+      return;
+    }
+    if (error.message === 'PRESET_DIRECTION_INVALID') {
+      res.status(400).json({ message: TEXT.presetDirectionInvalid });
+      return;
+    }
+    if (error.message === 'PRESET_NOT_FOUND') {
+      res.status(404).json({ message: TEXT.presetNotFound });
+      return;
+    }
+    res.status(500).json({ message: TEXT.presetSaveFailed, detail: error.message });
+  }
+}
+
+export async function deletePointPresetController(req, res) {
+  const sessionUser = ensureParentSession(req, res);
+  if (!sessionUser) return;
+
+  const presetId = Number.parseInt(String(req.params.presetId).trim(), 10);
+  if (!Number.isInteger(presetId) || presetId <= 0) {
+    res.status(400).json({ message: TEXT.presetNotFound });
+    return;
+  }
+
+  try {
+    await deletePointPreset({ parentId: sessionUser.id, presetId });
+    res.status(204).end();
+  } catch (error) {
+    if (error.message === 'PRESET_NOT_FOUND') {
+      res.status(404).json({ message: TEXT.presetNotFound });
+      return;
+    }
+    res.status(500).json({ message: TEXT.presetDeleteFailed, detail: error.message });
   }
 }

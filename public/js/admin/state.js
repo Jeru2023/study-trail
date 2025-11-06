@@ -30,7 +30,10 @@ const state = {
   },
   analyticsRange: 'today',
   analyticsStudentId: null,
-  analyticsStudentHistory: null
+  analyticsStudentHistory: null,
+  pointPresets: [],
+  activePointPresetTab: 'bonus',
+  editingPointPresetId: null
 };
 
 export function setUser(user) {
@@ -263,4 +266,28 @@ export function setAnalyticsStudentHistory(history) {
 
 export function getAnalyticsStudentHistory() {
   return state.analyticsStudentHistory;
+}
+
+export function setPointPresets(presets) {
+  state.pointPresets = presets;
+}
+
+export function getPointPresets() {
+  return state.pointPresets;
+}
+
+export function setActivePointPresetTab(tab) {
+  state.activePointPresetTab = tab === 'penalty' ? 'penalty' : 'bonus';
+}
+
+export function getActivePointPresetTab() {
+  return state.activePointPresetTab || 'bonus';
+}
+
+export function setEditingPointPresetId(id) {
+  state.editingPointPresetId = id;
+}
+
+export function getEditingPointPresetId() {
+  return state.editingPointPresetId;
 }

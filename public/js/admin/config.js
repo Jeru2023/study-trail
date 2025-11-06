@@ -1,12 +1,10 @@
+import { renderParentSidebar } from '../components/side_bar_parent.js';
 import {
   getCurrentUser,
   fetchTasks,
   createTask,
   updateTask,
   removeTask,
-  fetchTaskOverrides,
-  upsertTaskOverride,
-  deleteTaskOverride,
   fetchStudents,
   createStudent,
   updateStudent,
@@ -18,6 +16,10 @@ import {
   createReward,
   updateReward,
   deleteReward,
+  fetchQuickAdjustItems,
+  createQuickAdjustItem,
+  updateQuickAdjustItem,
+  deleteQuickAdjustItem,
   fetchUnreadNotificationsCount,
   logout
 } from '../modules/apiClient.js';
@@ -41,6 +43,12 @@ import {
   setAssignments,
   getRewards,
   setRewards,
+  getPointPresets,
+  setPointPresets,
+  getActivePointPresetTab,
+  setActivePointPresetTab,
+  getEditingPointPresetId,
+  setEditingPointPresetId,
   getNotificationsUnread,
   setNotificationsUnread,
   setUser
@@ -73,8 +81,23 @@ import {
   resetRewardForm
 } from './rewards.js';
 
-const VALID_VIEWS = ['students', 'tasks', 'assignments', 'rewards'];
+
+const VALID_VIEWS = ['students', 'tasks', 'assignments', 'rewards', 'point-presets'];
 const DEFAULT_VIEW = 'students';
+
+const sidebarRoot = qs('[data-component="parent-sidebar"]');
+const initialViewFromQuery = new URLSearchParams(window.location.search).get('view');
+const initialSidebarKey = (() => {
+  const normalized = normalizeView(initialViewFromQuery);
+  if (normalized === 'students') return 'config:students';
+  if (normalized === 'tasks') return 'config:tasks';
+  if (normalized === 'assignments') return 'config:assignments';
+  if (normalized === 'rewards') return 'config:rewards';
+  if (normalized === 'point-presets') return 'config:point-presets';
+  return 'config:students';
+})();
+
+renderParentSidebar(sidebarRoot, { activeKey: initialSidebarKey });
 
 const TEXT = {
   task: {
@@ -127,6 +150,20 @@ const TEXT = {
     pointsInvalid: '积分值需为不小于 0 的整数',
     stockInvalid: '库存需为不小于 0 的整数，或留空表示不限',
     confirmDelete: (title) => `确认删除奖励「${title}」吗？`
+  },
+  pointPreset: {
+    modalCreateTitle: '新增模版',
+    modalEditTitle: '编辑模版',
+    loading: '正在加载奖惩模版...',
+    saveInProgress: '正在保存模版...',
+    saveSuccess: '模版保存成功',
+    deleteSuccess: '模版已删除',
+    nameRequired: '请填写项目名称',
+    pointsInvalid: '分值需为不小于 0 的整数',
+    confirmDelete: (name) => `确认删除模版「${name}」吗？`,
+    emptyBonus: '还没有加分模版',
+    emptyPenalty: '还没有减分模版',
+    emptyHint: '添加常用奖惩模版，在积分管理里即可一键套用。'
   }
 };
 
@@ -137,12 +174,14 @@ const elements = {
   navTasks: qs('#navTasks'),
   navAssignments: qs('#navAssignments'),
   navRewards: qs('#navRewards'),
+  navPointPresets: qs('#navPointPresets'),
   sidebarToggles: qsa('[data-section-toggle]'),
   logoutButton: qs('#logoutButton'),
   addTaskBtn: qs('#addTaskBtn'),
   addStudentBtn: qs('#addStudentBtn'),
   addAssignmentBtn: qs('#addAssignmentBtn'),
   addRewardBtn: qs('#addRewardBtn'),
+  addPointPresetBtn: qs('#addPointPresetBtn'),
   avatar: {
     sidebar: qs('#sidebarAvatar'),
     topbar: qs('#topbarAvatar')
@@ -195,6 +234,17 @@ const elements = {
     formMessage: qs('#rewardFormMessage'),
     cancelBtn: qs('#cancelRewardBtn'),
     closeBtn: qs('#closeRewardModal')
+  },
+  pointPreset: {
+    message: qs('#pointPresetMessage'),
+    list: qs('#pointPresetList'),
+    tabContainer: qs('[data-preset-tabs]'),
+    modal: qs('#pointPresetModal'),
+    title: qs('#pointPresetModalTitle'),
+    form: qs('#pointPresetForm'),
+    formMessage: qs('#pointPresetFormMessage'),
+    cancelBtn: qs('#cancelPointPresetBtn'),
+    closeBtn: qs('#closePointPresetModal')
   }
 };
 
@@ -836,6 +886,300 @@ async function submitReward(event) {
   }
 }
 
+// ----- Point preset helpers -----
+
+function normalizePointPresetDirection(preset) {
+  if (!preset) return 'bonus';
+  if (preset.direction) return preset.direction;
+  const value = Number.parseInt(preset.points, 10);
+  if (Number.isNaN(value)) return 'bonus';
+  return value < 0 ? 'penalty' : 'bonus';
+}
+
+function formatPointPresetPoints(direction, points) {
+  const value = Number.parseInt(points, 10);
+  const safe = Number.isNaN(value) ? 0 : value;
+  const sign = direction === 'penalty' ? '-' : '+';
+  return `${sign}${Math.abs(safe)}`;
+}
+
+function renderPointPresetList(container, presets, direction, { onEdit, onDelete }) {
+  if (!container) return;
+  const normalizedDirection = direction === 'penalty' ? 'penalty' : 'bonus';
+  // eslint-disable-next-line no-param-reassign
+  container.dataset.activeTab = normalizedDirection;
+
+  if (!Array.isArray(presets) || presets.length === 0) {
+    const isPenalty = normalizedDirection === 'penalty';
+    container.innerHTML = `
+      <div class="empty-state">
+        <strong>${isPenalty ? TEXT.pointPreset.emptyPenalty : TEXT.pointPreset.emptyBonus}</strong>
+        <span>${TEXT.pointPreset.emptyHint}</span>
+      </div>
+    `;
+    return;
+  }
+
+  const rows = presets
+    .map((preset) => {
+      const directionLabel = normalizePointPresetDirection(preset);
+      const name = preset.name || preset.title || '未命名模版';
+      const pointsLabel = formatPointPresetPoints(directionLabel, preset.points);
+      return `
+        <tr>
+          <td>${name}</td>
+          <td>${pointsLabel}</td>
+          <td>
+            <div class="table__actions">
+              <button type="button" class="ghost-button" data-action="edit-point-preset" data-id="${preset.id}">
+                编辑
+              </button>
+              <button type="button" class="ghost-button" data-action="delete-point-preset" data-id="${preset.id}">
+                删除
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  container.innerHTML = `
+    <table class="table">
+      <thead>
+        <tr>
+          <th>项目名称</th>
+          <th>分值</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+
+  container.querySelectorAll('[data-action="edit-point-preset"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const id = Number.parseInt(button.dataset.id, 10);
+      if (Number.isInteger(id) && onEdit) {
+        onEdit(id);
+      }
+    });
+  });
+
+  container.querySelectorAll('[data-action="delete-point-preset"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const id = Number.parseInt(button.dataset.id, 10);
+      if (Number.isInteger(id) && onDelete) {
+        onDelete(id);
+      }
+    });
+  });
+}
+
+function getPointPresetsByDirection(direction) {
+  const target = direction === 'penalty' ? 'penalty' : 'bonus';
+  const all = getPointPresets() || [];
+  return all.filter((preset) => normalizePointPresetDirection(preset) === target);
+}
+
+function updatePointPresetTabUI(activeDirection = getActivePointPresetTab()) {
+  if (!elements.pointPreset.tabContainer) return;
+  const buttons = qsa('[data-preset-tab]', elements.pointPreset.tabContainer);
+  buttons.forEach((button) => {
+    const isActive = button.dataset.presetTab === activeDirection;
+    button.classList.toggle('chip-button--active', isActive);
+    button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+}
+
+function renderActivePointPresetList() {
+  if (!elements.pointPreset.list) return;
+  const direction = getActivePointPresetTab();
+  updatePointPresetTabUI(direction);
+  const presets = getPointPresetsByDirection(direction);
+  renderPointPresetList(elements.pointPreset.list, presets, direction, {
+    onEdit: handleEditPointPreset,
+    onDelete: handleDeletePointPreset
+  });
+}
+
+function handlePointPresetTabClick(event) {
+  const button = event.target.closest('[data-preset-tab]');
+  if (!button) return;
+  const targetDirection = button.dataset.presetTab === 'penalty' ? 'penalty' : 'bonus';
+  if (targetDirection === getActivePointPresetTab()) {
+    return;
+  }
+  setActivePointPresetTab(targetDirection);
+  renderActivePointPresetList();
+}
+
+function populatePointPresetForm(form, preset) {
+  if (!form || !preset) return;
+  form.elements.name.value = preset.name || preset.title || '';
+  const direction = normalizePointPresetDirection(preset);
+  const value = Math.abs(Number.parseInt(preset.points, 10) || 0);
+  form.elements.points.value = value.toString();
+  if (form.elements.direction) {
+    Array.from(form.elements.direction).forEach((input) => {
+      input.checked = input.value === direction;
+    });
+  }
+}
+
+function readPointPresetForm(form) {
+  if (!form) return null;
+  const name = form.elements.name.value.trim();
+  const pointsRaw = Number.parseInt(form.elements.points.value, 10);
+  const points = Number.isNaN(pointsRaw) ? null : Math.abs(pointsRaw);
+  const direction = form.elements.direction.value === 'penalty' ? 'penalty' : 'bonus';
+  return { name, points, direction };
+}
+
+function openPointPresetModal(mode, preset = null) {
+  if (!elements.pointPreset.modal) return;
+  elements.pointPreset.modal.dataset.mode = mode;
+  elements.pointPreset.modal.hidden = false;
+  if (elements.pointPreset.title) {
+    elements.pointPreset.title.textContent =
+      mode === 'edit' ? TEXT.pointPreset.modalEditTitle : TEXT.pointPreset.modalCreateTitle;
+  }
+  if (elements.pointPreset.formMessage) {
+    setMessage(elements.pointPreset.formMessage, '', '');
+  }
+  if (mode === 'edit' && preset) {
+    populatePointPresetForm(elements.pointPreset.form, preset);
+    setEditingPointPresetId(preset.id);
+  } else if (elements.pointPreset.form) {
+    elements.pointPreset.form.reset();
+    const activeDirection = getActivePointPresetTab();
+    if (elements.pointPreset.form.elements.direction) {
+      Array.from(elements.pointPreset.form.elements.direction).forEach((input) => {
+        // eslint-disable-next-line no-param-reassign
+        input.checked = input.value === activeDirection;
+      });
+    }
+    setEditingPointPresetId(null);
+  }
+}
+
+function closePointPresetModal() {
+  if (elements.pointPreset.modal) elements.pointPreset.modal.hidden = true;
+  if (elements.pointPreset.form) elements.pointPreset.form.reset();
+  setEditingPointPresetId(null);
+  if (elements.pointPreset.formMessage) setMessage(elements.pointPreset.formMessage, '', '');
+}
+
+async function loadPointPresets({ silent = false } = {}) {
+  if (!elements.pointPreset.list) return;
+  try {
+    if (!silent) {
+      elements.pointPreset.list.innerHTML = `<p class="loading">${TEXT.pointPreset.loading}</p>`;
+    }
+    const { presets } = await fetchQuickAdjustItems();
+    const normalized = (presets ?? []).map((item) => {
+      const direction = normalizePointPresetDirection(item);
+      const value = Math.abs(Number.parseInt(item.points, 10) || 0);
+      return { ...item, direction, points: value };
+    });
+    setPointPresets(normalized);
+    renderActivePointPresetList();
+    if (elements.pointPreset.message) {
+      setMessage(elements.pointPreset.message, '', '');
+    }
+  } catch (error) {
+    const message = (error?.message || '').toLowerCase();
+    if (message.includes('not found') || message.includes('404')) {
+      setPointPresets([]);
+      renderActivePointPresetList();
+      if (elements.pointPreset.message) {
+        setMessage(elements.pointPreset.message, '', '');
+      }
+    } else {
+      elements.pointPreset.list.innerHTML = '';
+      if (elements.pointPreset.message) {
+        setMessage(elements.pointPreset.message, error.message, 'error');
+      }
+      updatePointPresetTabUI();
+    }
+  }
+}
+
+function handleEditPointPreset(presetId) {
+  const preset = getPointPresets().find((item) => item.id === presetId);
+  if (!preset) return;
+  openPointPresetModal('edit', preset);
+}
+
+async function handleDeletePointPreset(presetId) {
+  const preset = getPointPresets().find((item) => item.id === presetId);
+  const name = preset?.name || preset?.title || '该模版';
+  if (!window.confirm(TEXT.pointPreset.confirmDelete(name))) {
+    return;
+  }
+  try {
+    await deleteQuickAdjustItem(presetId);
+    if (elements.pointPreset.message) {
+      setMessage(elements.pointPreset.message, TEXT.pointPreset.deleteSuccess, 'success');
+    }
+    await loadPointPresets({ silent: true });
+  } catch (error) {
+    if (elements.pointPreset.message) {
+      setMessage(elements.pointPreset.message, error.message, 'error');
+    }
+  }
+}
+
+async function submitPointPreset(event) {
+  event.preventDefault();
+  if (!elements.pointPreset.form) return;
+  const payload = readPointPresetForm(elements.pointPreset.form);
+  if (!payload.name) {
+    setMessage(elements.pointPreset.formMessage, TEXT.pointPreset.nameRequired, 'error');
+    return;
+  }
+  if (!Number.isInteger(payload.points) || payload.points < 0) {
+    setMessage(elements.pointPreset.formMessage, TEXT.pointPreset.pointsInvalid, 'error');
+    return;
+  }
+
+  const editingId = getEditingPointPresetId();
+  const requestPayload = {
+    name: payload.name,
+    points: payload.points,
+    direction: payload.direction
+  };
+
+  try {
+    disableForm(elements.pointPreset.form, true);
+    setMessage(elements.pointPreset.formMessage, TEXT.pointPreset.saveInProgress, 'info');
+    if (editingId) {
+      await updateQuickAdjustItem(editingId, requestPayload);
+    } else {
+      await createQuickAdjustItem(requestPayload);
+    }
+    setActivePointPresetTab(requestPayload.direction);
+    if (elements.pointPreset.message) {
+      setMessage(elements.pointPreset.message, TEXT.pointPreset.saveSuccess, 'success');
+    }
+    await loadPointPresets({ silent: true });
+    closePointPresetModal();
+  } catch (error) {
+    const message = (error?.message || '').toLowerCase();
+    if (message.includes('not found') || message.includes('404')) {
+      setMessage(
+        elements.pointPreset.formMessage,
+        '后台暂未开通奖惩模版接口，请联系管理员配置。',
+        'error'
+      );
+    } else {
+      setMessage(elements.pointPreset.formMessage, error.message, 'error');
+    }
+  } finally {
+    disableForm(elements.pointPreset.form, false);
+  }
+}
+
 // ----- Modal & navigation helpers -----
 
 function setupModalInteractions() {
@@ -895,6 +1239,20 @@ function setupModalInteractions() {
     });
   }
 
+  if (elements.pointPreset.cancelBtn) {
+    elements.pointPreset.cancelBtn.addEventListener('click', closePointPresetModal);
+  }
+  if (elements.pointPreset.closeBtn) {
+    elements.pointPreset.closeBtn.addEventListener('click', closePointPresetModal);
+  }
+  if (elements.pointPreset.modal) {
+    elements.pointPreset.modal.addEventListener('click', (event) => {
+      if (event.target.dataset.action === 'close-modal') {
+        closePointPresetModal();
+      }
+    });
+  }
+
   window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       if (elements.task.modal && !elements.task.modal.hidden) {
@@ -908,6 +1266,9 @@ function setupModalInteractions() {
       }
       if (elements.reward.modal && !elements.reward.modal.hidden) {
         closeRewardModal();
+      }
+      if (elements.pointPreset.modal && !elements.pointPreset.modal.hidden) {
+        closePointPresetModal();
       }
     }
   });
@@ -933,6 +1294,9 @@ async function renderCurrentView({ forceReload = false } = {}) {
       await loadAssignments();
     } else if (normalized === 'rewards') {
       await loadRewards({ silent: false });
+    } else if (normalized === 'point-presets') {
+      updatePointPresetTabUI();
+      await loadPointPresets({ silent: false });
     }
     return;
   }
@@ -946,6 +1310,9 @@ async function renderCurrentView({ forceReload = false } = {}) {
     await loadAssignments();
   } else if (normalized === 'rewards') {
     await loadRewards({ silent: false });
+  } else if (normalized === 'point-presets') {
+    updatePointPresetTabUI();
+    await loadPointPresets({ silent: false });
   }
 }
 
@@ -1048,6 +1415,16 @@ function main() {
   }
   if (elements.reward.form) {
     elements.reward.form.addEventListener('submit', submitReward);
+  }
+  if (elements.addPointPresetBtn) {
+    elements.addPointPresetBtn.addEventListener('click', () => openPointPresetModal('create'));
+  }
+  if (elements.pointPreset.tabContainer) {
+    elements.pointPreset.tabContainer.addEventListener('click', handlePointPresetTabClick);
+    updatePointPresetTabUI();
+  }
+  if (elements.pointPreset.form) {
+    elements.pointPreset.form.addEventListener('submit', submitPointPreset);
   }
 
   if (elements.logoutButton) {

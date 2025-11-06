@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>学迹 · 额外加分</title>
+    <link rel="stylesheet" href="/css/admin.css" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <aside class="sidebar" data-component="parent-sidebar" data-open="false" data-active="points:bonus"></aside>
+
+      <div class="workspace">
+        <main class="content">
+          <section class="page-header">
+            <div>
+              <h1>额外加分</h1>
+              <p class="page-subtitle">瞄准常用奖励模版，为孩子快速增加积分。</p>
+            </div>
+            <div class="page-actions">
+              <button type="button" class="ghost-button" id="pointsRefreshBtn">刷新列表</button>
+            </div>
+          </section>
+
+          <p class="page-message" id="pointsMessage"></p>
+
+          <div class="points-layout">
+            <aside class="points-students card" id="pointsStudentList"></aside>
+            <section class="points-detail card" id="pointsDetail" data-empty="true">
+              <div class="points-detail__placeholder" id="pointsEmptyHint">
+                <p>请选择一位学生查看积分详情。</p>
+              </div>
+              <div class="points-detail__content" id="pointsDetailContent" hidden>
+                <header class="points-detail__header">
+                  <div>
+                    <h2 id="pointsStudentName">学生姓名</h2>
+                    <p class="points-detail__meta">
+                      <span id="pointsStudentLogin"></span>
+                      <span id="pointsStudentUpdated"></span>
+                    </p>
+                  </div>
+                  <div class="points-detail__balance">
+                    <span class="points-detail__balance-label">当前积分</span>
+                    <span class="points-detail__balance-value" id="pointsStudentBalance">0</span>
+                  </div>
+                </header>
+
+                <section class="points-actions-group">
+                  <div class="points-preset">
+                    <h3>模版加分</h3>
+                    <p class="points-preset__hint" id="pointsPresetHint">
+                      从奖惩模版选择常用加分项目，一键完成奖励。
+                    </p>
+                    <div class="points-preset__list" id="pointsPresetList"></div>
+                  </div>
+                  <form id="pointsAdjustForm" class="points-form">
+                    <h3>自定义加分</h3>
+                    <div class="form-grid">
+                      <label class="form-field">
+                        <span class="form-label">奖励积分</span>
+                        <input
+                          type="number"
+                          name="delta"
+                          required
+                          min="1"
+                          step="1"
+                          placeholder="输入需要奖励的积分"
+                        />
+                      </label>
+                      <label class="form-field">
+                        <span class="form-label">备注说明</span>
+                        <input
+                          type="text"
+                          name="note"
+                          maxlength="120"
+                          placeholder="记录调整原因（选填）"
+                        />
+                      </label>
+                    </div>
+                    <p class="form-message" id="pointsAdjustMessage"></p>
+                    <div class="form-actions">
+                      <button type="submit" class="primary-button">确认调整</button>
+                    </div>
+                  </form>
+                </section>
+
+                <section class="points-history">
+                  <header class="points-history__header">
+                    <h3>积分记录</h3>
+                    <button
+                      type="button"
+                      class="ghost-button ghost-button--small"
+                      id="pointsHistoryRefreshBtn"
+                    >
+                      刷新记录
+                    </button>
+                  </header>
+                  <ul class="points-history__list" id="pointsHistoryList"></ul>
+                </section>
+              </div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="/js/admin/pointsBonus.js"></script>
+  </body>
+</html>

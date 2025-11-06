@@ -259,3 +259,19 @@ export function fetchAnalyticsStudentHistory(studentId, { sources, since } = {})
   const search = params.toString() ? `?${params.toString()}` : '';
   return request(`/api/analytics/students/${studentId}/history${search}`);
 }
+
+export function fetchQuickAdjustItems() {
+  return request('/api/points/presets');
+}
+
+export function createQuickAdjustItem(payload) {
+  return request('/api/points/presets', { method: 'POST', data: payload });
+}
+
+export function updateQuickAdjustItem(presetId, payload) {
+  return request(`/api/points/presets/${presetId}`, { method: 'PUT', data: payload });
+}
+
+export function deleteQuickAdjustItem(presetId) {
+  return request(`/api/points/presets/${presetId}`, { method: 'DELETE' });
+}

@@ -129,10 +129,16 @@ function toggleRecurringFields(form, scheduleType) {
   if (!field) return;
   const isRecurring = scheduleType === 'recurring';
   field.hidden = !isRecurring;
+  field.classList.toggle('is-visible', isRecurring);
   if (!isRecurring) {
     setRecurringDay(form, null);
   } else {
     syncRecurringDayField(form);
+  }
+
+  const weekdayContainer = form.querySelector('[data-weekday-toggle]');
+  if (weekdayContainer) {
+    weekdayContainer.setAttribute('aria-hidden', String(!isRecurring));
   }
 }
 
@@ -230,19 +236,28 @@ export function resetTaskForm(form) {
   if (form.elements.points) {
     form.elements.points.value = '0';
   }
+  if (form.elements.description) {
+    form.elements.description.value = '';
+  }
   setScheduleToggle(form, 'weekday');
   setRecurringDay(form, null);
 }
 
 export function populateTaskForm(form, task) {
   form.elements.title.value = task?.title ?? '';
-  form.elements.description.value = task?.description ?? '';
+  if (form.elements.description) {
+    form.elements.description.value = task?.description ?? '';
+  }
   if (form.elements.points) {
     form.elements.points.value =
       task?.points !== undefined && task?.points !== null ? String(task.points) : '0';
   }
-  form.elements.startDate.value = task?.start_date ?? '';
-  form.elements.endDate.value = task?.end_date ?? '';
+  if (form.elements.startDate) {
+    form.elements.startDate.value = task?.start_date ?? '';
+  }
+  if (form.elements.endDate) {
+    form.elements.endDate.value = task?.end_date ?? '';
+  }
   const scheduleType = task?.schedule_type ?? 'weekday';
   const recurringDay =
     task?.recurring_day_of_week ?? task?.recurringDayOfWeek ?? form.elements.recurringDayOfWeek?.value;
@@ -257,9 +272,10 @@ export function populateTaskForm(form, task) {
 
 export function readTaskForm(form) {
   const title = form.elements.title.value.trim();
-  const description = form.elements.description.value.trim();
-  const startDate = form.elements.startDate.value;
-  const endDate = form.elements.endDate.value;
+  const descriptionField = form.elements.description;
+  const description = descriptionField ? descriptionField.value.trim() : '';
+  const startDate = form.elements.startDate ? form.elements.startDate.value : '';
+  const endDate = form.elements.endDate ? form.elements.endDate.value : '';
   const pointsValue = form.elements.points.value.trim();
   const parsedPoints = Number.parseInt(pointsValue, 10);
   const points = Number.isNaN(parsedPoints) ? null : parsedPoints;

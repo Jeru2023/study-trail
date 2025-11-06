@@ -44,6 +44,19 @@ function mapLedgerRow(row) {
   };
 }
 
+function mapPointPreset(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    parentId: row.parent_id,
+    name: row.name,
+    points: Number(row.points),
+    direction: row.direction === 'penalty' ? 'penalty' : 'bonus',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
 async function fetchStudentForParent(connection, parentId, studentId, { lock = false } = {}) {
   const lockClause = lock ? 'FOR UPDATE' : '';
   const [[student]] = await connection.query(
@@ -380,4 +393,85 @@ export function isLedgerSourceManual(source) {
 
 export function isLedgerSourceReward(source) {
   return source === LEDGER_SOURCES.REWARD;
+}
+
+export async function listPointPresets(parentId) {
+  const [rows] = await pool.query(
+    `
+      SELECT id, parent_id, name, points, direction, created_at, updated_at
+        FROM point_presets
+       WHERE parent_id = ?
+       ORDER BY updated_at DESC, id DESC
+    `,
+    [parentId]
+  );
+  return rows.map(mapPointPreset);
+}
+
+export async function createPointPreset({ parentId, name, points, direction }) {
+  const normalizedDirection = direction === 'penalty' ? 'penalty' : 'bonus';
+  const [result] = await pool.query(
+    `
+      INSERT INTO point_presets (parent_id, name, points, direction)
+      VALUES (?, ?, ?, ?)
+    `,
+    [parentId, name, points, normalizedDirection]
+  );
+
+  const [[row]] = await pool.query(
+    `
+      SELECT id, parent_id, name, points, direction, created_at, updated_at
+        FROM point_presets
+       WHERE id = ?
+       LIMIT 1
+    `,
+    [result.insertId]
+  );
+
+  return mapPointPreset(row);
+}
+
+export async function updatePointPreset({ parentId, presetId, name, points, direction }) {
+  const normalizedDirection = direction === 'penalty' ? 'penalty' : 'bonus';
+  const [result] = await pool.query(
+    `
+      UPDATE point_presets
+         SET name = ?,
+             points = ?,
+             direction = ?,
+             updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND parent_id = ?
+    `,
+    [name, points, normalizedDirection, presetId, parentId]
+  );
+
+  if (result.affectedRows === 0) {
+    throw new Error('PRESET_NOT_FOUND');
+  }
+
+  const [[row]] = await pool.query(
+    `
+      SELECT id, parent_id, name, points, direction, created_at, updated_at
+        FROM point_presets
+       WHERE id = ?
+       LIMIT 1
+    `,
+    [presetId]
+  );
+
+  return mapPointPreset(row);
+}
+
+export async function deletePointPreset({ parentId, presetId }) {
+  const [result] = await pool.query(
+    `
+      DELETE FROM point_presets
+       WHERE id = ? AND parent_id = ?
+    `,
+    [presetId, parentId]
+  );
+
+  if (result.affectedRows === 0) {
+    throw new Error('PRESET_NOT_FOUND');
+  }
 }

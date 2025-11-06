@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>学迹 · 积分兑换</title>
+    <link rel="stylesheet" href="/css/admin.css" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <aside class="sidebar" data-component="parent-sidebar" data-open="false" data-active="points:redeem"></aside>
+
+      <div class="workspace">
+        <main class="content">
+          <section class="page-header">
+            <div>
+              <h1>积分兑换</h1>
+              <p class="page-subtitle">为孩子扣除积分，完成奖励兑换并同步库存。</p>
+            </div>
+            <div class="page-actions">
+              <button type="button" class="ghost-button" id="redeemRefreshBtn">刷新列表</button>
+            </div>
+          </section>
+
+          <p class="page-message" id="redeemMessage"></p>
+
+          <div class="points-layout">
+            <aside class="points-students card" id="redeemStudentList"></aside>
+            <section class="points-detail card" id="redeemDetail" data-empty="true">
+              <div class="points-detail__placeholder" id="redeemEmptyHint">
+                <p>请选择一位学生进行兑换。</p>
+              </div>
+              <div class="points-detail__content" id="redeemDetailContent" hidden>
+                <header class="points-detail__header">
+                  <div>
+                    <h2 id="redeemStudentName">学生姓名</h2>
+                    <p class="points-detail__meta">
+                      <span id="redeemStudentLogin"></span>
+                      <span id="redeemStudentUpdated"></span>
+                    </p>
+                  </div>
+                  <div class="points-detail__balance">
+                    <span class="points-detail__balance-label">当前积分</span>
+                    <span class="points-detail__balance-value" id="redeemStudentBalance">0</span>
+                  </div>
+                </header>
+
+                <section class="points-actions-group">
+                  <form id="redeemForm" class="points-form">
+                    <h3>兑换奖励</h3>
+                    <div class="form-grid">
+                      <label class="form-field">
+                        <span class="form-label">选择奖励</span>
+                        <select name="rewardId" required>
+                          <option value="">请选择奖励</option>
+                        </select>
+                      </label>
+                      <label class="form-field">
+                        <span class="form-label">兑换数量</span>
+                        <input type="number" name="quantity" min="1" step="1" value="1" />
+                      </label>
+                    </div>
+                    <label class="form-field">
+                      <span class="form-label">备注说明</span>
+                      <input
+                        type="text"
+                        name="note"
+                        maxlength="120"
+                        placeholder="记录兑换场景（选填）"
+                      />
+                    </label>
+                    <p class="form-message" id="redeemFormMessage"></p>
+                    <div class="form-actions">
+                      <button type="submit" class="primary-button">确认兑换</button>
+                    </div>
+                  </form>
+                </section>
+
+                <section class="points-history">
+                  <header class="points-history__header">
+                    <h3>积分记录</h3>
+                    <button
+                      type="button"
+                      class="ghost-button ghost-button--small"
+                      id="redeemHistoryRefreshBtn"
+                    >
+                      刷新记录
+                    </button>
+                  </header>
+                  <ul class="points-history__list" id="redeemHistoryList"></ul>
+                </section>
+              </div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="/js/admin/pointsRedeem.js"></script>
+  </body>
+</html>

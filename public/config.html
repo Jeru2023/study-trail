@@ -8,140 +8,9 @@
   </head>
   <body>
     <div class="admin-shell">
-      <aside class="sidebar" data-open="false">
-        <div class="sidebar__brand">
-          <span class="sidebar__logo">学迹</span>
-          <span class="sidebar__subtitle">Study Trail</span>
-        </div>
-        <div class="sidebar__profile">
-          <span class="avatar" id="sidebarAvatar">P</span>
-          <div>
-            <strong id="sidebarUserName">家长</strong>
-            <span class="role-pill">Parent</span>
-          </div>
-        </div>
-        <nav class="sidebar__nav">
-          <button class="nav-item" data-link="/admin.html?view=analytics" id="navAnalytics">
-            <span>数据分析</span>
-          </button>
-          <div class="sidebar-section" data-section="approvals">
-            <button
-              type="button"
-              class="sidebar-section__toggle"
-              data-section-toggle
-              aria-expanded="true"
-              aria-controls="sectionApprovals"
-            >
-              <span>审批流</span>
-              <span class="sidebar-section__indicator" aria-hidden="true"></span>
-            </button>
-            <div
-              class="sidebar-section__content"
-              id="sectionApprovals"
-              data-section-content
-              aria-hidden="false"
-            >
-              <button class="nav-item" data-link="/admin.html?view=plan-approvals" id="navPlanApprovals">
-                <span>计划审批</span>
-              </button>
-              <button class="nav-item" data-link="/admin.html?view=approvals" id="navApprovals">
-                <span>任务审批</span>
-              </button>
-            </div>
-          </div>
-          <div class="sidebar-section" data-section="config">
-            <button
-              type="button"
-              class="sidebar-section__toggle"
-              data-section-toggle
-              aria-expanded="true"
-              aria-controls="sectionConfig"
-            >
-              <span>配置中心</span>
-              <span class="sidebar-section__indicator" aria-hidden="true"></span>
-            </button>
-            <div
-              class="sidebar-section__content"
-              id="sectionConfig"
-              data-section-content
-              aria-hidden="false"
-            >
-              <button class="nav-item nav-item--active" data-view="students" id="navStudents">
-                <span>学生账号</span>
-              </button>
-              <button class="nav-item" data-view="tasks" id="navTasks">
-                <span>打卡任务</span>
-              </button>
-              <button class="nav-item" data-link="/config-schedules.html" id="navSchedules">
-                <span>日期调度</span>
-              </button>
-              <button class="nav-item" data-view="assignments" id="navAssignments">
-                <span>任务关联</span>
-              </button>
-              <button class="nav-item" data-view="rewards" id="navRewards">
-                <span>积分商城</span>
-              </button>
-            </div>
-          </div>
-          <div class="sidebar-section" data-section="points">
-            <button
-              type="button"
-              class="sidebar-section__toggle"
-              data-section-toggle
-              aria-expanded="true"
-              aria-controls="sectionPoints"
-            >
-              <span>积分操作</span>
-              <span class="sidebar-section__indicator" aria-hidden="true"></span>
-            </button>
-            <div
-              class="sidebar-section__content"
-              id="sectionPoints"
-              data-section-content
-              aria-hidden="false"
-            >
-              <button class="nav-item" data-link="/admin.html?view=points" id="navPoints">
-                <span>积分管理</span>
-              </button>
-              <button class="nav-item" data-link="/admin.html?view=redeem" id="navRedeem">
-                <span>积分兑换</span>
-              </button>
-            </div>
-          </div>
-          <button class="nav-item" data-link="/admin.html?view=notifications" id="navNotifications">
-            <span>消息中心</span>
-          </button>
-        </nav>
-        <div class="sidebar__footer">
-          <button class="nav-item" id="logoutButton">退出登录</button>
-        </div>
-      </aside>
+      <aside class="sidebar" data-component="parent-sidebar" data-open="false" data-active="config:students"></aside>
 
       <div class="workspace">
-        <header class="topbar">
-          <div class="topbar__search">
-            <input type="search" placeholder="搜索..." disabled />
-          </div>
-          <div class="topbar__actions">
-            <button
-              type="button"
-              class="icon-button icon-button--badge"
-              id="notificationsButton"
-              data-link="/admin.html?view=notifications"
-              aria-label="消息中心"
-            >
-              <span class="icon icon-envelope" aria-hidden="true"></span>
-              <span class="badge" id="notificationsBadge" hidden>0</span>
-            </button>
-            <div class="user-chip">
-              <span class="avatar" id="topbarAvatar">P</span>
-              <div class="user-chip__meta">
-                <span id="topbarUserName">家长</span>
-                <span class="user-chip__role">Parent</span>
-              </div>
-            </div>
-          </div>
-        </header>
 
         <main class="content">
           <section class="view" data-view="students">
@@ -180,19 +49,10 @@
               </header>
               <div class="table-container" id="taskList"></div>
             </section>
-            <section class="card card--callout">
-              <div class="card__header">
-                <h2>日期调度移至独立页面</h2>
-                <p class="card__subtitle">
-                  为考试周、假期等特殊场景定制任务，请前往「日期调度」统一管理。
-                </p>
-              </div>
-              <div class="card__actions">
-                <button type="button" class="ghost-button" data-link="/config-schedules.html">
-                  前往日期调度
-                </button>
-              </div>
-            </section>
+            <p class="page-hint">
+              需要为特殊日期调整任务展示？<a class="inline-link" href="/config-schedules.html">打开日期调度</a>
+              即可统一管理。
+            </p>
           </section>
 
           <section class="view" data-view="assignments" hidden>
@@ -232,6 +92,45 @@
               <div class="table-container" id="rewardList"></div>
             </section>
           </section>
+
+          <section class="view" data-view="point-presets" hidden>
+            <div class="page-header">
+              <div>
+                <h1>奖惩模版</h1>
+                <p class="page-subtitle">维护常用奖惩模版，让积分调整更高效。</p>
+              </div>
+              <div class="page-actions">
+                <button type="button" class="primary-button" id="addPointPresetBtn">新增模版</button>
+              </div>
+            </div>
+            <p class="page-message" id="pointPresetMessage"></p>
+            <section class="card">
+              <header class="card__header card__header--split">
+                <h2>模版列表</h2>
+                <div class="preset-tab-group" data-preset-tabs role="tablist" aria-label="奖惩模版分类">
+                  <button
+                    type="button"
+                    class="chip-button chip-button--active"
+                    data-preset-tab="bonus"
+                    role="tab"
+                    aria-selected="true"
+                  >
+                    加分项
+                  </button>
+                  <button
+                    type="button"
+                    class="chip-button"
+                    data-preset-tab="penalty"
+                    role="tab"
+                    aria-selected="false"
+                  >
+                    减分项
+                  </button>
+                </div>
+              </header>
+              <div class="table-container" id="pointPresetList"></div>
+            </section>
+          </section>
         </main>
       </div>
     </div>
@@ -250,22 +149,19 @@
           </label>
 
           <label class="form-field">
-            <span class="form-label">任务说明</span>
-            <textarea name="description" rows="4" placeholder="补充任务要求或奖励机制"></textarea>
-          </label>
-
-          <label class="form-field">
-            <span class="form-label">任务类型</span>
+            <span class="form-label">
+              任务类型
+            </span>
             <div class="task-type-toggle" data-task-type-toggle>
               <input type="hidden" name="scheduleType" value="weekday" />
-              <button type="button" class="chip-button chip-button--active" data-schedule="weekday">
-                日常任务（周一至周五）
+              <button type="button" class="chip-button chip-button--active" data-schedule="weekday" data-tooltip="工作日每天出现">
+                日常任务
               </button>
-              <button type="button" class="chip-button" data-schedule="holiday">
-                节假任务（周末及放假日）
+              <button type="button" class="chip-button" data-schedule="holiday" data-tooltip="节假日和周末出现">
+                节假任务
               </button>
-              <button type="button" class="chip-button" data-schedule="recurring">
-                定期任务（每周固定）
+              <button type="button" class="chip-button" data-schedule="recurring" data-tooltip="每周固定一天出现">
+                定期任务
               </button>
             </div>
           </label>
@@ -289,18 +185,10 @@
             <input type="number" name="points" min="0" step="1" required placeholder="例如：10" />
           </label>
 
-          <div class="form-grid">
-            <label class="form-field">
-              <span class="form-label">开始日期</span>
-              <input type="date" name="startDate" />
-            </label>
-            <label class="form-field">
-              <span class="form-label">结束日期</span>
-              <input type="date" name="endDate" />
-            </label>
-          </div>
-
           <p class="form-message" id="taskFormMessage"></p>
+
+          <input type="hidden" name="startDate" value="" />
+          <input type="hidden" name="endDate" value="" />
 
           <div class="modal__actions">
             <button type="button" class="ghost-button" id="cancelTaskBtn">取消</button>
@@ -417,6 +305,44 @@
 
           <div class="modal__actions">
             <button type="button" class="ghost-button" id="cancelRewardBtn">取消</button>
+            <button type="submit" class="primary-button">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal" id="pointPresetModal" hidden>
+      <div class="modal__backdrop" data-action="close-modal"></div>
+      <div class="modal__dialog">
+        <header class="modal__header">
+          <h2 id="pointPresetModalTitle">新增模版</h2>
+          <button type="button" class="icon-button" id="closePointPresetModal" aria-label="关闭">×</button>
+        </header>
+        <form id="pointPresetForm" class="modal__form">
+          <label class="form-field">
+            <span class="form-label">项目名称</span>
+            <input type="text" name="name" required maxlength="120" placeholder="例如：按时完成作业" />
+          </label>
+          <label class="form-field">
+            <span class="form-label">分值</span>
+            <input type="number" name="points" min="0" step="1" required placeholder="例如：5" />
+          </label>
+          <fieldset class="form-field">
+            <legend class="form-label">类型</legend>
+            <div class="radio-group">
+              <label class="radio">
+                <input type="radio" name="direction" value="bonus" checked />
+                <span>加分</span>
+              </label>
+              <label class="radio">
+                <input type="radio" name="direction" value="penalty" />
+                <span>扣分</span>
+              </label>
+            </div>
+          </fieldset>
+          <p class="form-message" id="pointPresetFormMessage"></p>
+          <div class="modal__actions">
+            <button type="button" class="ghost-button" id="cancelPointPresetBtn">取消</button>
             <button type="submit" class="primary-button">保存</button>
           </div>
         </form>

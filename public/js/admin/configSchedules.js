@@ -1,3 +1,4 @@
+import { renderParentSidebar } from '../components/side_bar_parent.js';
 import {
   getCurrentUser,
   fetchTaskOverrides,
@@ -56,6 +57,13 @@ function toggleSidebarSection(button) {
     content.setAttribute('aria-hidden', nextExpanded ? 'false' : 'true');
   }
 }
+
+
+const sidebarRoot = qs('[data-component="parent-sidebar"]');
+renderParentSidebar(sidebarRoot, { activeKey: 'config:schedules' });
+
+const CONFIG_VIEWS = new Set(['students', 'tasks', 'assignments', 'rewards', 'point-presets']);
+const ADMIN_VIEWS = new Set(['analytics', 'plan-approvals', 'approvals', 'notifications']);
 
 const elements = {
   navContainer: qs('.sidebar__nav'),
@@ -412,12 +420,27 @@ function setupNavigation() {
         toggleSidebarSection(sectionToggle);
         return;
       }
-      const target = event.target.closest('[data-link]');
-      if (!target) return;
-      event.preventDefault();
-      const href = target.dataset.link;
-      if (href) {
-        window.location.href = href;
+      const viewTarget = event.target.closest('[data-view]');
+      if (viewTarget) {
+        event.preventDefault();
+        const view = viewTarget.dataset.view;
+        if (!view) return;
+        if (CONFIG_VIEWS.has(view)) {
+          window.location.href = `/config.html?view=${view}`;
+          return;
+        }
+        if (ADMIN_VIEWS.has(view)) {
+          window.location.href = `/admin.html?view=${view}`;
+          return;
+        }
+      }
+      const linkTarget = event.target.closest('[data-link]');
+      if (linkTarget) {
+        event.preventDefault();
+        const href = linkTarget.dataset.link;
+        if (href) {
+          window.location.href = href;
+        }
       }
     });
   }
