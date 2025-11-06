@@ -1,7 +1,15 @@
+import { loadRememberedLogin } from './remember.js';
+
 const listeners = new Set();
 
+let initialRole = 'parent';
+const remembered = loadRememberedLogin();
+if (remembered?.remember && remembered?.role) {
+  initialRole = remembered.role;
+}
+
 const state = {
-  role: 'parent'
+  role: initialRole
 };
 
 export function getRole() {

@@ -1,6 +1,11 @@
 ﻿import { login, registerParent } from './apiClient.js';
 import { setRole, getRole, onRoleChange } from './state.js';
 import { disableForm, qsa, setMessage, toggleHidden } from './dom.js';
+import {
+  loadRememberedLogin,
+  saveRememberedLogin,
+  clearRememberedLogin
+} from './remember.js';
 
 const TEXT = {
   studentTitle: '学迹 · 学生登录',
@@ -13,13 +18,47 @@ const TEXT = {
   parentOnly: '家长身份可注册，学生请联系家长创建账号。'
 };
 
+function applyRememberedCredentials(role, loginForm, loginMessage) {
+  if (!loginForm) return false;
+
+  const remembered = loadRememberedLogin();
+  const rememberCheckbox = loginForm.querySelector('input[name="remember"]');
+  const loginNameInput = loginForm.querySelector('input[name="loginName"]');
+  const passwordInput = loginForm.querySelector('input[name="password"]');
+
+  const matched =
+    remembered?.remember &&
+    remembered?.role &&
+    remembered.role === role &&
+    remembered.loginName &&
+    typeof remembered.password === 'string' &&
+    remembered.password !== '';
+
+  if (rememberCheckbox) {
+    rememberCheckbox.checked = matched;
+  }
+
+  if (loginNameInput) {
+    loginNameInput.value = matched ? remembered.loginName : '';
+  }
+  if (passwordInput) {
+    passwordInput.value = matched ? remembered.password : '';
+  }
+
+  if (!matched && loginMessage) {
+    setMessage(loginMessage, '', '');
+  }
+
+  return matched;
+}
+
 function updateShellRole(shell, role) {
   if (!shell) return;
   shell.dataset.role = role;
   document.title = role === 'parent' ? TEXT.parentTitle : TEXT.studentTitle;
 }
 
-async function handleLogin(event, loginForm, loginMessage) {
+async function handleLogin(event, loginForm, loginMessage, rememberCheckbox) {
   event.preventDefault();
   const role = getRole();
   const formData = new FormData(loginForm);
@@ -39,6 +78,15 @@ async function handleLogin(event, loginForm, loginMessage) {
     disableForm(loginForm, true);
     setMessage(loginMessage, TEXT.loggingIn, 'info');
     const { user } = await login(payload);
+    if (rememberCheckbox?.checked) {
+      saveRememberedLogin({
+        role,
+        loginName: payload.loginName,
+        password: payload.password
+      });
+    } else {
+      clearRememberedLogin();
+    }
 
     if (user.role === 'parent') {
       window.location.href = '/admin.html';
@@ -91,13 +139,22 @@ function updateUIForRole({
   loginMessage,
   signupMessage,
   parentCta,
-  studentCta
+  studentCta,
+  rememberCheckbox
 }) {
   updateShellRole(document.querySelector('.auth-shell'), role);
-  qsa('input', loginForm).forEach((input) => {
-    input.value = '';
-  });
+
   setMessage(loginMessage, '', '');
+  const hasRemembered = applyRememberedCredentials(role, loginForm, loginMessage);
+  if (!hasRemembered && loginForm) {
+    const loginNameInput = loginForm.querySelector('input[name="loginName"]');
+    const passwordInput = loginForm.querySelector('input[name="password"]');
+    if (loginNameInput) loginNameInput.value = '';
+    if (passwordInput) passwordInput.value = '';
+    if (rememberCheckbox) {
+      rememberCheckbox.checked = false;
+    }
+  }
 
   if (signupForm) {
     qsa('input', signupForm).forEach((input) => {
@@ -111,7 +168,9 @@ function updateUIForRole({
     toggleHidden(parentCta, true);
     toggleHidden(studentCta, false);
     toggleHidden(signupPanel, true);
-    setMessage(loginMessage, TEXT.parentOnly, 'info');
+    if (!hasRemembered) {
+      setMessage(loginMessage, TEXT.parentOnly, 'info');
+    }
   } else {
     toggleHidden(ctaPanel, false);
     toggleHidden(parentCta, false);
@@ -155,8 +214,12 @@ export function setupAuthForms({
   parentCta,
   studentCta
 }) {
+  const rememberCheckbox = loginForm?.querySelector('input[name="remember"]');
+
   if (loginForm) {
-    loginForm.addEventListener('submit', (event) => handleLogin(event, loginForm, loginMessage));
+    loginForm.addEventListener('submit', (event) =>
+      handleLogin(event, loginForm, loginMessage, rememberCheckbox)
+    );
   }
 
   if (signupForm) {
@@ -176,7 +239,8 @@ export function setupAuthForms({
       loginMessage,
       signupMessage,
       parentCta,
-      studentCta
+      studentCta,
+      rememberCheckbox
     });
   });
 
@@ -191,6 +255,7 @@ export function setupAuthForms({
     loginMessage,
     signupMessage,
     parentCta,
-    studentCta
+    studentCta,
+    rememberCheckbox
   });
 }

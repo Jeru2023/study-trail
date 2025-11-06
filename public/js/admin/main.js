@@ -439,7 +439,8 @@ const elements = {
   topbar: {
     notificationsButton: qs('#notificationsButton'),
     notificationsBadge: qs('#notificationsBadge')
-  }
+  },
+  sidebarToggles: qsa('[data-section-toggle]')
 };
 
 function getNavButtons() {
@@ -450,6 +451,18 @@ function highlightNav(view) {
   getNavButtons().forEach((button) => {
     if (button.dataset.view === view) {
       button.classList.add('nav-item--active');
+      const section = button.closest('.sidebar-section');
+      if (section) {
+        section.classList.remove('is-collapsed');
+        const toggle = section.querySelector('[data-section-toggle]');
+        if (toggle) {
+          toggle.setAttribute('aria-expanded', 'true');
+        }
+        const content = section.querySelector('.sidebar-section__content');
+        if (content) {
+          content.setAttribute('aria-hidden', 'false');
+        }
+      }
     } else {
       button.classList.remove('nav-item--active');
     }
@@ -463,6 +476,22 @@ function showView(view) {
     const visible = section.dataset.view === view;
     toggleHidden(section, !visible);
   });
+}
+
+function toggleSidebarSection(button) {
+  if (!button) return;
+  const section = button.closest('.sidebar-section');
+  const contentId = button.getAttribute('aria-controls');
+  const content = contentId ? document.getElementById(contentId) : null;
+  const expanded = button.getAttribute('aria-expanded') === 'true';
+  const nextExpanded = !expanded;
+  button.setAttribute('aria-expanded', String(nextExpanded));
+  if (section) {
+    section.classList.toggle('is-collapsed', !nextExpanded);
+  }
+  if (content) {
+    content.setAttribute('aria-hidden', nextExpanded ? 'false' : 'true');
+  }
 }
 
 function escapeHtml(value) {
@@ -2468,6 +2497,11 @@ async function changeView(view) {
 function setupNavigation() {
   if (elements.navContainer) {
     elements.navContainer.addEventListener('click', (event) => {
+      const sectionToggle = event.target.closest('[data-section-toggle]');
+      if (sectionToggle) {
+        toggleSidebarSection(sectionToggle);
+        return;
+      }
       const target = event.target.closest('[data-view]');
       if (!target || target.disabled) return;
       console.debug('[admin] nav click', target.dataset.view);
@@ -2511,6 +2545,19 @@ function setupNavigation() {
       changeView('notifications');
     });
   }
+
+  elements.sidebarToggles.forEach((button) => {
+    const contentId = button.getAttribute('aria-controls');
+    const content = contentId ? document.getElementById(contentId) : null;
+    const expanded = button.getAttribute('aria-expanded') === 'true';
+    if (content) {
+      content.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+    }
+    const section = button.closest('.sidebar-section');
+    if (section) {
+      section.classList.toggle('is-collapsed', !expanded);
+    }
+  });
 }
 
 function setupModalInteractions() {

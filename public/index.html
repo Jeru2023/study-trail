@@ -47,10 +47,18 @@
             </label>
             <div class="form-row">
               <label class="checkbox">
-                <input type="checkbox" name="remember" disabled />
+                <input type="checkbox" name="remember" />
                 <span>记住我</span>
               </label>
-              <a href="#" class="link link--muted" id="forgotLink">忘记密码？</a>
+              <div class="form-row__links">
+                <div class="link-group">
+                  <a href="#" class="link link--muted" id="forgotLink">忘记密码？</a>
+                </div>
+                <div class="link-group">
+                  <button type="button" class="link-button" id="switchRoleButton">切换身份</button>
+                  <button type="button" class="link-button" id="forgetRememberButton">忘记记住信息</button>
+                </div>
+              </div>
             </div>
             <button type="submit" class="primary-button">登录</button>
             <p class="form-message" id="loginMessage" role="alert"></p>

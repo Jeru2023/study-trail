@@ -1,31 +1,48 @@
-import { setRole } from './state.js';
+import { setRole, getRole } from './state.js';
+import { hasRememberedLogin, loadRememberedLogin } from './remember.js';
+
+let overlayRef = null;
+let shellRef = null;
+
+function hideOverlay() {
+  if (!overlayRef) return;
+  overlayRef.dataset.open = 'false';
+  overlayRef.setAttribute('aria-hidden', 'true');
+  overlayRef.classList.add('is-hidden');
+  overlayRef.hidden = true;
+}
+
+function showOverlay() {
+  if (!overlayRef) return;
+  overlayRef.hidden = false;
+  overlayRef.classList.remove('is-hidden');
+  overlayRef.dataset.open = 'true';
+  overlayRef.removeAttribute('aria-hidden');
+  overlayRef.focus();
+}
 
 export function setupIdentitySelector({ overlay, shell }) {
   if (!overlay || !shell) return;
+  overlayRef = overlay;
+  shellRef = shell;
 
-  // eslint-disable-next-line no-console
-  console.log('[identitySelector] initialized', { overlay, shell });
-
-  const hideOverlay = () => {
-    overlay.dataset.open = 'false';
-    overlay.setAttribute('aria-hidden', 'true');
-    overlay.classList.add('is-hidden');
-    overlay.hidden = true;
-    // Delay removal to avoid interfering with current click handling
-    window.requestAnimationFrame(() => {
-      overlay.remove();
-    });
-  };
+  const remembered = loadRememberedLogin();
+  if (hasRememberedLogin() && remembered?.role) {
+    setRole(remembered.role);
+    shell.dataset.role = remembered.role;
+    hideOverlay();
+  } else {
+    shell.dataset.role = getRole();
+  }
 
   overlay.addEventListener('click', (event) => {
     const trigger = event.target.closest('[data-role]');
     if (!trigger) return;
-
     const role = trigger.dataset.role;
-    // eslint-disable-next-line no-console
-    console.log('[identitySelector] role selected', role);
     setRole(role);
-    shell.dataset.role = role;
+    if (shellRef) {
+      shellRef.dataset.role = role;
+    }
     hideOverlay();
   });
 
@@ -35,11 +52,16 @@ export function setupIdentitySelector({ overlay, shell }) {
       if (!trigger) return;
       event.preventDefault();
       const role = trigger.dataset.role;
-      // eslint-disable-next-line no-console
-      console.log('[identitySelector] role selected via keyboard', role);
       setRole(role);
-      shell.dataset.role = role;
+      if (shellRef) {
+        shellRef.dataset.role = role;
+      }
       hideOverlay();
     }
   });
+}
+
+export function requestIdentitySelection() {
+  if (!overlayRef) return;
+  showOverlay();
 }

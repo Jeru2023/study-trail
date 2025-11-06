@@ -24,30 +24,87 @@
           <button class="nav-item nav-item--active" data-view="analytics" id="navAnalytics">
             <span>数据分析</span>
           </button>
-          <button class="nav-item" data-view="tasks" id="navTasks">
-            <span>打卡任务</span>
-          </button>
-          <button class="nav-item" data-view="students" id="navStudents">
-            <span>学生账号</span>
-          </button>
-          <button class="nav-item" data-view="assignments" id="navAssignments">
-            <span>任务关联</span>
-          </button>
-          <button class="nav-item" data-view="plan-approvals" id="navPlanApprovals">
-            <span>计划审批</span>
-          </button>
-          <button class="nav-item" data-view="approvals" id="navApprovals">
-            <span>打卡审批</span>
-          </button>
-          <button class="nav-item" data-view="rewards" id="navRewards">
-            <span>积分商城</span>
-          </button>
-          <button class="nav-item" data-view="redeem" id="navRedeem">
-            <span>积分兑换</span>
-          </button>
-          <button class="nav-item" data-view="points" id="navPoints">
-            <span>积分管理</span>
-          </button>
+          <div class="sidebar-section" data-section="approvals">
+            <button
+              type="button"
+              class="sidebar-section__toggle"
+              data-section-toggle
+              aria-expanded="true"
+              aria-controls="sectionApprovals"
+            >
+              <span>审批流</span>
+              <span class="sidebar-section__indicator" aria-hidden="true"></span>
+            </button>
+            <div
+              class="sidebar-section__content"
+              id="sectionApprovals"
+              data-section-content
+              aria-hidden="false"
+            >
+              <button class="nav-item" data-view="plan-approvals" id="navPlanApprovals">
+                <span>计划审批</span>
+              </button>
+              <button class="nav-item" data-view="approvals" id="navApprovals">
+                <span>任务审批</span>
+              </button>
+            </div>
+          </div>
+          <div class="sidebar-section is-collapsed" data-section="config">
+            <button
+              type="button"
+              class="sidebar-section__toggle"
+              data-section-toggle
+              aria-expanded="false"
+              aria-controls="sectionConfig"
+            >
+              <span>配置中心</span>
+              <span class="sidebar-section__indicator" aria-hidden="true"></span>
+            </button>
+            <div
+              class="sidebar-section__content"
+              id="sectionConfig"
+              data-section-content
+              aria-hidden="true"
+            >
+              <button class="nav-item" data-view="students" id="navStudents">
+                <span>学生账号</span>
+              </button>
+              <button class="nav-item" data-view="tasks" id="navTasks">
+                <span>打卡任务</span>
+              </button>
+              <button class="nav-item" data-view="assignments" id="navAssignments">
+                <span>任务关联</span>
+              </button>
+              <button class="nav-item" data-view="rewards" id="navRewards">
+                <span>积分商城</span>
+              </button>
+            </div>
+          </div>
+          <div class="sidebar-section" data-section="points">
+            <button
+              type="button"
+              class="sidebar-section__toggle"
+              data-section-toggle
+              aria-expanded="true"
+              aria-controls="sectionPoints"
+            >
+              <span>积分操作</span>
+              <span class="sidebar-section__indicator" aria-hidden="true"></span>
+            </button>
+            <div
+              class="sidebar-section__content"
+              id="sectionPoints"
+              data-section-content
+              aria-hidden="false"
+            >
+              <button class="nav-item" data-view="points" id="navPoints">
+                <span>积分管理</span>
+              </button>
+              <button class="nav-item" data-view="redeem" id="navRedeem">
+                <span>积分兑换</span>
+              </button>
+            </div>
+          </div>
           <button class="nav-item" data-view="notifications" id="navNotifications">
             <span>消息中心</span>
           </button>
