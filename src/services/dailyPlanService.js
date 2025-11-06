@@ -53,6 +53,7 @@ function mapPlanRow(row, extras = {}) {
     studentId: row.student_id,
     planDate: row.plan_date,
     status: row.status,
+    requiredSubtasks: row.required_subtasks ?? 0,
     submittedAt: row.submitted_at,
     approvedAt: row.approved_at,
     approvedBy: row.approved_by,
@@ -72,6 +73,7 @@ function mapPlanItemRow(row) {
     taskId: row.task_id,
     title: row.title,
     sortOrder: row.sort_order,
+    requiredSubtasks: row.required_subtasks ?? 1,
     taskTitle: row.task_title || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -262,7 +264,10 @@ export async function saveStudentDailyPlan({ studentId, planDate: planDateInput,
   await ensureTaskSchedulingArtifacts();
 
   const planDate = normalizePlanDate(planDateInput);
-  const normalizedItems = validateAndNormalizeItems(items);
+    const normalizedItems = validateAndNormalizeItems(items).map((item) => ({
+      ...item,
+      requiredSubtasks: Number.isInteger(item.requiredSubtasks) && item.requiredSubtasks > 0 ? item.requiredSubtasks : 1
+    }));
   if (submit && normalizedItems.length === 0) {
     throw new Error('PLAN_ITEMS_REQUIRED');
   }
@@ -335,11 +340,17 @@ export async function saveStudentDailyPlan({ studentId, planDate: planDateInput,
     }
 
     if (normalizedItems.length > 0) {
-      const values = normalizedItems.map((item) => [planId, item.taskId, item.title, item.sortOrder]);
+      const values = normalizedItems.map((item) => [
+        planId,
+        item.taskId,
+        item.title,
+        item.sortOrder,
+        item.requiredSubtasks
+      ]);
       await connection.query(
         `
           INSERT INTO daily_plan_items
-            (plan_id, task_id, title, sort_order)
+            (plan_id, task_id, title, sort_order, required_subtasks)
           VALUES ?
         `,
         [values]
@@ -521,6 +532,7 @@ export async function getParentDailyPlan({ parentId, planId }) {
     const plan = await loadPlanWithItems(connection, planRow);
     if (plan) {
       plan.studentName = planRow.student_name || null;
+      plan.requiredSubtasks = plan.requiredSubtasks ?? 0;
     }
     return plan;
   } finally {

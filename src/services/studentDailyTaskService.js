@@ -52,6 +52,40 @@ function normalizeScheduleType(value) {
   return normalized === 'holiday' ? 'holiday' : 'weekday';
 }
 
+function normalizeTaskScheduleType(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if (normalized === 'holiday') {
+    return 'holiday';
+  }
+  if (normalized === 'recurring') {
+    return 'recurring';
+  }
+  return 'weekday';
+}
+
+function normalizeRecurringDay(value) {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  const parsed = Number.parseInt(String(value).trim(), 10);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 6) {
+    return null;
+  }
+  return parsed;
+}
+
+function isTaskScheduledForDate(task, targetDate, dayScheduleType) {
+  const taskSchedule = normalizeTaskScheduleType(task.schedule_type);
+  if (taskSchedule === 'recurring') {
+    const recurringDay = normalizeRecurringDay(task.recurring_day_of_week);
+    if (recurringDay === null) {
+      return false;
+    }
+    return targetDate.getDay() === recurringDay;
+  }
+  return taskSchedule === dayScheduleType;
+}
+
 async function resolveScheduleType(parentId, entryDate) {
   const [[override]] = await pool.query(
     `SELECT schedule_type
@@ -120,7 +154,11 @@ function detectFileCategory({ file_type: fileType, original_name: originalName =
 
 async function ensureAssignment(studentId, taskId) {
   const [[assignment]] = await pool.query(
-    `SELECT st.parent_id, t.start_date, t.end_date
+    `SELECT st.parent_id,
+            t.start_date,
+            t.end_date,
+            t.schedule_type,
+            t.recurring_day_of_week
        FROM student_tasks st
        INNER JOIN tasks t ON st.task_id = t.id
       WHERE st.student_id = ? AND st.task_id = ?
@@ -219,10 +257,12 @@ async function fetchApprovedPlanWithItems(connection, studentId, planDate) {
              dp.student_id,
              dp.plan_date,
              dp.status,
+             dp.required_subtasks AS plan_required_subtasks,
              dpi.id AS item_id,
              dpi.task_id,
              dpi.title AS item_title,
-             dpi.sort_order
+             dpi.sort_order,
+             dpi.required_subtasks AS item_required_subtasks
         FROM daily_plans dp
         LEFT JOIN daily_plan_items dpi ON dpi.plan_id = dp.id
        WHERE dp.student_id = ?
@@ -243,6 +283,7 @@ async function fetchApprovedPlanWithItems(connection, studentId, planDate) {
     studentId: rows[0].student_id,
     planDate: rows[0].plan_date,
     status: rows[0].status,
+    requiredSubtasks: rows[0].plan_required_subtasks ?? 0,
     items: []
   };
 
@@ -252,7 +293,8 @@ async function fetchApprovedPlanWithItems(connection, studentId, planDate) {
         id: row.item_id,
         taskId: row.task_id,
         title: row.item_title,
-        sortOrder: row.sort_order
+        sortOrder: row.sort_order,
+        requiredSubtasks: row.item_required_subtasks ?? 1
       });
     }
   });
@@ -264,6 +306,11 @@ async function ensurePlanEntriesForPlan(connection, plan) {
   if (!plan || plan.status !== PLAN_STATUS_APPROVED || !plan.items.length) {
     return;
   }
+
+  const requiredMap = new Map();
+  plan.items.forEach((item) => {
+    requiredMap.set(item.taskId, (requiredMap.get(item.taskId) || 0) + (item.requiredSubtasks ?? 1));
+  });
 
   for (const item of plan.items) {
     const [[existing]] = await connection.query(
@@ -317,8 +364,12 @@ async function ensurePlanEntriesForPlan(connection, plan) {
       );
       entryId = result.insertId;
     }
-
   }
+
+  plan.requiredSubtasks =
+    plan.requiredSubtasks && plan.requiredSubtasks > 0
+      ? plan.requiredSubtasks
+      : Array.from(requiredMap.values()).reduce((sum, value) => sum + value, 0);
 }
 
 function groupFilesByEntry(files) {
@@ -371,6 +422,7 @@ export async function listDailyTasksForStudent(studentId, dateInput) {
             t.description,
             t.points,
             t.schedule_type,
+            t.recurring_day_of_week,
             t.start_date,
             t.end_date,
             t.created_at
@@ -388,6 +440,8 @@ export async function listDailyTasksForStudent(studentId, dateInput) {
   let scheduleType = 'weekday';
   if (assignments.length > 0) {
     scheduleType = await resolveScheduleType(assignments[0].parent_id, dateString);
+  } else if (plan) {
+    scheduleType = await resolveScheduleType(plan.parentId, dateString);
   }
 
   let activeAssignments;
@@ -418,6 +472,7 @@ export async function listDailyTasksForStudent(studentId, dateInput) {
                    description,
                    points,
                    schedule_type,
+                   recurring_day_of_week,
                    start_date,
                    end_date
               FROM tasks
@@ -435,8 +490,8 @@ export async function listDailyTasksForStudent(studentId, dateInput) {
       }
     }
   } else {
-    activeAssignments = assignments.filter(
-      (assignment) => normalizeScheduleType(assignment.schedule_type) === scheduleType
+    activeAssignments = assignments.filter((assignment) =>
+      isTaskScheduledForDate(assignment, targetDate, scheduleType)
     );
   }
 
@@ -461,7 +516,8 @@ export async function listDailyTasksForStudent(studentId, dateInput) {
     title: assignment.title,
     description: assignment.description,
     points: assignment.points,
-    scheduleType: normalizeScheduleType(assignment.schedule_type),
+    scheduleType: normalizeTaskScheduleType(assignment.schedule_type),
+    recurringDayOfWeek: normalizeRecurringDay(assignment.recurring_day_of_week),
     startDate: assignment.start_date,
     endDate: assignment.end_date,
     subtasks: entriesByTask.get(assignment.task_id) || []
@@ -549,6 +605,19 @@ export async function createSubtaskEntry({ studentId, taskId, entryDate, title, 
   const assignment = await ensureAssignment(studentId, taskId);
   assertWithinDateRange(dateValue, assignment.start_date, assignment.end_date);
 
+  const assignmentScheduleType = normalizeTaskScheduleType(assignment.schedule_type);
+  if (assignmentScheduleType === 'recurring') {
+    const recurringDay = normalizeRecurringDay(assignment.recurring_day_of_week);
+    if (recurringDay === null || recurringDay !== dateValue.getDay()) {
+      throw new Error('TASK_NOT_SCHEDULED');
+    }
+  } else {
+    const dayScheduleType = await resolveScheduleType(assignment.parent_id, dateString);
+    if (assignmentScheduleType !== dayScheduleType) {
+      throw new Error('TASK_NOT_SCHEDULED');
+    }
+  }
+
   const planParams = {
     parentId: assignment.parent_id,
     studentId,
@@ -556,9 +625,18 @@ export async function createSubtaskEntry({ studentId, taskId, entryDate, title, 
     entryDate: dateString
   };
   const existingPlan = await fetchDailyPlan(pool, planParams);
+  const planItemId = existingPlan?.plan_item_id ?? null;
   if (existingPlan?.is_locked) {
-    const currentTotal = await countDailySubtasks(pool, planParams);
-    if (currentTotal >= Number(existingPlan.required_subtasks ?? 0)) {
+    const requiredTotal = Number(existingPlan.required_subtasks ?? 0);
+    if (requiredTotal > 0) {
+      const currentTotal = await countDailySubtasks(pool, {
+        ...planParams,
+        planItemId
+      });
+      if (currentTotal >= requiredTotal) {
+        throw new Error('DAY_PLAN_LOCKED');
+      }
+    } else {
       throw new Error('DAY_PLAN_LOCKED');
     }
   }
@@ -571,7 +649,10 @@ export async function createSubtaskEntry({ studentId, taskId, entryDate, title, 
   );
 
   if (existingPlan?.is_locked) {
-    await syncDailyPlan(pool, planParams);
+    await syncDailyPlan(pool, {
+      ...planParams,
+      planItemId
+    });
   }
 
   return getEntryById(result.insertId, studentId);
@@ -636,35 +717,63 @@ export async function countProofsForEntry(entryId, connection = pool) {
 }
 
 async function fetchDailyPlan(client, { parentId, studentId, taskId, entryDate }) {
-  const [[plan]] = await client.query(
-    `SELECT id,
-            parent_id,
-            student_id,
-            task_id,
-            entry_date,
-            required_subtasks,
-            is_locked,
-            locked_at
-       FROM student_task_daily_plans
-      WHERE parent_id = ?
-        AND student_id = ?
-        AND task_id = ?
-        AND entry_date = ?
-      LIMIT 1`,
-    [parentId, studentId, taskId, entryDate]
+  const [[row]] = await client.query(
+    `
+      SELECT dp.id AS plan_id,
+             dp.parent_id,
+             dp.student_id,
+             dp.plan_date,
+             dp.status,
+             dp.approved_at,
+             dpi.id AS plan_item_id,
+             dpi.required_subtasks AS item_required_subtasks
+        FROM daily_plans dp
+        LEFT JOIN daily_plan_items dpi
+          ON dpi.plan_id = dp.id
+         AND dpi.task_id = ?
+       WHERE dp.parent_id = ?
+         AND dp.student_id = ?
+         AND dp.plan_date = ?
+       LIMIT 1
+    `,
+    [taskId, parentId, studentId, entryDate]
   );
-  return plan ?? null;
+
+  if (!row || !row.plan_item_id) {
+    return null;
+  }
+
+  const required = Number(row.item_required_subtasks ?? 1);
+  return {
+    id: row.plan_id,
+    parent_id: row.parent_id,
+    student_id: row.student_id,
+    task_id: taskId,
+    entry_date: row.plan_date,
+    required_subtasks: required > 0 ? required : 1,
+    is_locked: row.status === PLAN_STATUS_APPROVED,
+    locked_at: row.approved_at,
+    plan_item_id: row.plan_item_id
+  };
 }
 
-async function countDailySubtasks(client, { parentId, studentId, taskId, entryDate }) {
+async function countDailySubtasks(
+  client,
+  { parentId, studentId, taskId, entryDate, planItemId = null }
+) {
   const [[{ total } = { total: 0 }]] = await client.query(
-    `SELECT COUNT(*) AS total
-       FROM student_task_entries
-      WHERE parent_id = ?
-        AND student_id = ?
-        AND task_id = ?
-        AND entry_date = ?`,
-    [parentId, studentId, taskId, entryDate]
+    `
+      SELECT COUNT(*) AS total
+        FROM student_task_entries
+       WHERE parent_id = ?
+         AND student_id = ?
+         AND task_id = ?
+         AND entry_date = ?
+         ${planItemId ? 'AND plan_item_id = ?' : ''}
+    `,
+    planItemId
+      ? [parentId, studentId, taskId, entryDate, planItemId]
+      : [parentId, studentId, taskId, entryDate]
   );
   return Number(total) || 0;
 }
@@ -675,75 +784,66 @@ async function syncDailyPlan(client, params) {
     return null;
   }
 
-  const total = await countDailySubtasks(client, params);
-  if (total === 0) {
-    await client.query('DELETE FROM student_task_daily_plans WHERE id = ?', [plan.id]);
-    return null;
-  }
-
-  const currentRequired = Number(plan.required_subtasks ?? 0);
+  const total = await countDailySubtasks(client, {
+    ...params,
+    planItemId: plan.plan_item_id
+  });
 
   if (plan.is_locked) {
-    if (total > currentRequired) {
-      await client.query(
-        `UPDATE student_task_daily_plans
-            SET required_subtasks = ?, updated_at = CURRENT_TIMESTAMP
-          WHERE id = ?`,
-        [total, plan.id]
-      );
-      return {
-        ...plan,
-        required_subtasks: total
-      };
-    }
-    return plan;
-  }
-
-  if (currentRequired !== total) {
     await client.query(
-      `UPDATE student_task_daily_plans
-          SET required_subtasks = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?`,
-      [total, plan.id]
+      `
+        UPDATE daily_plans
+           SET required_subtasks = (
+                 SELECT COALESCE(SUM(required_subtasks), 0)
+                   FROM daily_plan_items
+                  WHERE plan_id = ?
+               ),
+               updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?
+      `,
+      [plan.id, plan.id]
     );
-    return {
-      ...plan,
-      required_subtasks: total
-    };
   }
 
-  return plan;
+  return {
+    ...plan,
+    required_subtasks: plan.required_subtasks || (total > 0 ? total : plan.required_subtasks)
+  };
 }
 
 async function lockDailyPlan(client, params) {
   const plan = await fetchDailyPlan(client, params);
-  if (plan?.is_locked) {
-    return plan;
+  if (!plan) {
+    return null;
   }
 
-  const total = await countDailySubtasks(client, params);
+  const total = await countDailySubtasks(client, {
+    ...params,
+    planItemId: plan.plan_item_id
+  });
+
   if (total === 0) {
     throw new Error('DAY_PLAN_EMPTY');
   }
 
-  if (!plan) {
-    await client.query(
-      `INSERT INTO student_task_daily_plans
-         (parent_id, student_id, task_id, entry_date, required_subtasks, is_locked, locked_at)
-       VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`,
-      [params.parentId, params.studentId, params.taskId, params.entryDate, total]
-    );
-  } else {
-    await client.query(
-      `UPDATE student_task_daily_plans
-          SET required_subtasks = ?, is_locked = 1, locked_at = CURRENT_TIMESTAMP,
-              updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?`,
-      [total, plan.id]
-    );
-  }
+  await client.query(
+    `
+      UPDATE daily_plans
+         SET required_subtasks = (
+               SELECT COALESCE(SUM(required_subtasks), 0)
+                 FROM daily_plan_items
+                WHERE plan_id = ?
+             ),
+             updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?
+    `,
+    [plan.id, plan.id]
+  );
 
-  return fetchDailyPlan(client, params);
+  return {
+    ...plan,
+    required_subtasks: plan.required_subtasks || total
+  };
 }
 
 async function areAllSubtasksApproved(connection, { parentId, studentId, taskId, entryDate }) {
@@ -757,8 +857,11 @@ async function areAllSubtasksApproved(connection, { parentId, studentId, taskId,
       WHERE parent_id = ?
         AND student_id = ?
         AND task_id = ?
-        AND entry_date = ?`,
-    [parentId, studentId, taskId, entryDate]
+        AND entry_date = ?
+        ${plan?.plan_item_id ? 'AND plan_item_id = ?' : ''}`,
+    plan?.plan_item_id
+      ? [parentId, studentId, taskId, entryDate, plan.plan_item_id]
+      : [parentId, studentId, taskId, entryDate]
   );
 
   const total = Number(stats?.total ?? 0);

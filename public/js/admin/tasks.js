@@ -25,6 +25,8 @@ const TEXT = {
   overridesColumnActions: '\u64cd\u4f5c'
 };
 
+const WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
 function escapeHtml(value) {
   if (!value) return '';
   return value.replace(/[&<>'\"]/g, (char) => ({
@@ -76,17 +78,67 @@ function formatPoints(value) {
   return String(parsed);
 }
 
-function formatScheduleType(value) {
+function formatScheduleType(value, recurringDay = null) {
   const normalized = String(value ?? '').trim().toLowerCase();
   if (normalized === 'holiday') {
     return '节假任务';
   }
+  if (normalized === 'recurring') {
+    const index = Number.parseInt(String(recurringDay ?? '').trim(), 10);
+    if (Number.isInteger(index) && index >= 0 && index <= 6) {
+      return `定期任务（每周${WEEKDAY_LABELS[index]}）`;
+    }
+    return '定期任务';
+  }
   return '日常任务';
+}
+
+function setRecurringDay(form, day) {
+  if (!form) return;
+  const container = form.querySelector('[data-weekday-toggle]');
+  if (!container) return;
+  const hidden = container.querySelector('input[name="recurringDayOfWeek"]');
+  container.querySelectorAll('[data-weekday]').forEach((button) => {
+    const value = Number.parseInt(button.dataset.weekday, 10);
+    const isActive = Number.isInteger(day) && day === value;
+    button.classList.toggle('chip-button--active', isActive);
+  });
+  if (hidden) {
+    if (Number.isInteger(day) && day >= 0 && day <= 6) {
+      hidden.value = String(day);
+    } else {
+      hidden.value = '';
+    }
+  }
+}
+
+function syncRecurringDayField(form) {
+  if (!form) return;
+  const hidden = form?.elements?.recurringDayOfWeek;
+  if (!hidden) {
+    setRecurringDay(form, null);
+    return;
+  }
+  const value = Number.parseInt(hidden.value, 10);
+  setRecurringDay(form, Number.isInteger(value) ? value : null);
+}
+
+function toggleRecurringFields(form, scheduleType) {
+  if (!form) return;
+  const field = form.querySelector('[data-recurring-fields]');
+  if (!field) return;
+  const isRecurring = scheduleType === 'recurring';
+  field.hidden = !isRecurring;
+  if (!isRecurring) {
+    setRecurringDay(form, null);
+  } else {
+    syncRecurringDayField(form);
+  }
 }
 
 function setScheduleToggle(form, value) {
   if (!form) return;
-  const normalized = value === 'holiday' ? 'holiday' : 'weekday';
+  const normalized = value === 'holiday' ? 'holiday' : value === 'recurring' ? 'recurring' : 'weekday';
   const hidden = form.elements.scheduleType;
   if (hidden) {
     hidden.value = normalized;
@@ -97,6 +149,7 @@ function setScheduleToggle(form, value) {
     const isActive = button.dataset.schedule === normalized;
     button.classList.toggle('chip-button--active', isActive);
   });
+  toggleRecurringFields(form, normalized);
 }
 
 export function renderTaskList(container, tasks, { onEdit, onDelete }) {
@@ -124,7 +177,9 @@ export function renderTaskList(container, tasks, { onEdit, onDelete }) {
               ${safeDescription ? `<p class="task-desc">${safeDescription}</p>` : ''}
             </div>
           </td>
-          <td>${escapeHtml(formatScheduleType(task.schedule_type))}</td>
+          <td>${escapeHtml(
+            formatScheduleType(task.schedule_type, task.recurring_day_of_week)
+          )}</td>
           <td>${escapeHtml(formatPoints(task.points))}</td>
           <td>${escapeHtml(formatPeriod(task))}</td>
           <td>${escapeHtml(formatDate(task.created_at))}</td>
@@ -176,6 +231,7 @@ export function resetTaskForm(form) {
     form.elements.points.value = '0';
   }
   setScheduleToggle(form, 'weekday');
+  setRecurringDay(form, null);
 }
 
 export function populateTaskForm(form, task) {
@@ -187,7 +243,16 @@ export function populateTaskForm(form, task) {
   }
   form.elements.startDate.value = task?.start_date ?? '';
   form.elements.endDate.value = task?.end_date ?? '';
-  setScheduleToggle(form, task?.schedule_type ?? 'weekday');
+  const scheduleType = task?.schedule_type ?? 'weekday';
+  const recurringDay =
+    task?.recurring_day_of_week ?? task?.recurringDayOfWeek ?? form.elements.recurringDayOfWeek?.value;
+  setScheduleToggle(form, scheduleType);
+  if (scheduleType === 'recurring') {
+    const dayValue = Number.parseInt(recurringDay, 10);
+    setRecurringDay(form, Number.isInteger(dayValue) ? dayValue : null);
+  } else {
+    setRecurringDay(form, null);
+  }
 }
 
 export function readTaskForm(form) {
@@ -199,6 +264,9 @@ export function readTaskForm(form) {
   const parsedPoints = Number.parseInt(pointsValue, 10);
   const points = Number.isNaN(parsedPoints) ? null : parsedPoints;
   const scheduleType = form.elements.scheduleType?.value ?? 'weekday';
+  const recurringRaw = form.elements.recurringDayOfWeek?.value ?? '';
+  const recurringDay = Number.parseInt(recurringRaw, 10);
+  const recurringDayOfWeek = Number.isInteger(recurringDay) ? recurringDay : null;
 
   return {
     title,
@@ -206,7 +274,8 @@ export function readTaskForm(form) {
     points,
     startDate: startDate || null,
     endDate: endDate || null,
-    scheduleType
+    scheduleType,
+    recurringDayOfWeek: scheduleType === 'recurring' ? recurringDayOfWeek : null
   };
 }
 
@@ -216,6 +285,9 @@ export function setupTaskTypeToggle(form) {
   if (container.dataset.bound === 'true') {
     const current = form.elements.scheduleType?.value ?? 'weekday';
     setScheduleToggle(form, current);
+    if (current === 'recurring') {
+      syncRecurringDayField(form);
+    }
     return;
   }
   container.dataset.bound = 'true';
@@ -225,8 +297,29 @@ export function setupTaskTypeToggle(form) {
     event.preventDefault();
     setScheduleToggle(form, button.dataset.schedule);
   });
+
+  const weekdayContainer = form.querySelector('[data-weekday-toggle]');
+  if (weekdayContainer && weekdayContainer.dataset.bound !== 'true') {
+    weekdayContainer.dataset.bound = 'true';
+    weekdayContainer.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-weekday]');
+      if (!button || button.disabled) return;
+      event.preventDefault();
+      const value = Number.parseInt(button.dataset.weekday, 10);
+      const isActive = button.classList.contains('chip-button--active');
+      if (isActive) {
+        setRecurringDay(form, null);
+      } else if (Number.isInteger(value)) {
+        setRecurringDay(form, value);
+      }
+    });
+  }
+
   const initial = form.elements.scheduleType?.value ?? 'weekday';
   setScheduleToggle(form, initial);
+  if (initial === 'recurring') {
+    syncRecurringDayField(form);
+  }
 }
 
 export function renderTaskOverrides(container, overrides, { onDelete }) {

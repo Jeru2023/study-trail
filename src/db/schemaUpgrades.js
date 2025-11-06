@@ -5,7 +5,27 @@ let ensureSchedulingPromise = null;
 async function applyTaskScheduleColumn() {
   try {
     await pool.query(
-      "ALTER TABLE tasks ADD COLUMN schedule_type ENUM('weekday','holiday') NOT NULL DEFAULT 'weekday' AFTER points"
+      "ALTER TABLE tasks ADD COLUMN schedule_type ENUM('weekday','holiday','recurring') NOT NULL DEFAULT 'weekday' AFTER points"
+    );
+  } catch (error) {
+    if (error.code !== 'ER_DUP_FIELDNAME') {
+      throw error;
+    }
+  }
+
+  try {
+    await pool.query(
+      "ALTER TABLE tasks MODIFY COLUMN schedule_type ENUM('weekday','holiday','recurring') NOT NULL DEFAULT 'weekday'"
+    );
+  } catch (error) {
+    if (error.code !== 'ER_NO_SUCH_TABLE') {
+      throw error;
+    }
+  }
+
+  try {
+    await pool.query(
+      'ALTER TABLE tasks ADD COLUMN recurring_day_of_week TINYINT UNSIGNED NULL AFTER schedule_type'
     );
   } catch (error) {
     if (error.code !== 'ER_DUP_FIELDNAME') {
@@ -133,6 +153,13 @@ async function dropLegacyDailyPlanTables() {
 
 async function applyDailyPlanTables() {
   await dropLegacyDailyPlanTables();
+
+  if (!(await columnExists('daily_plans', 'required_subtasks'))) {
+    await pool.query(
+      "ALTER TABLE daily_plans ADD COLUMN required_subtasks INT UNSIGNED NOT NULL DEFAULT 0 AFTER status"
+    );
+  }
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS daily_plans (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -140,6 +167,7 @@ async function applyDailyPlanTables() {
       student_id BIGINT UNSIGNED NOT NULL,
       plan_date DATE NOT NULL,
       status ENUM('draft','submitted','approved','rejected') NOT NULL DEFAULT 'draft',
+      required_subtasks INT UNSIGNED NOT NULL DEFAULT 0,
       submitted_at DATETIME NULL,
       approved_at DATETIME NULL,
       approved_by BIGINT UNSIGNED NULL,
@@ -166,6 +194,7 @@ async function applyDailyPlanTables() {
       task_id BIGINT UNSIGNED NOT NULL,
       title VARCHAR(255) NOT NULL,
       sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+      required_subtasks INT UNSIGNED NOT NULL DEFAULT 1,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
@@ -176,6 +205,12 @@ async function applyDailyPlanTables() {
       CONSTRAINT fk_daily_plan_items_task FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+
+  if (!(await columnExists('daily_plan_items', 'required_subtasks'))) {
+    await pool.query(
+      'ALTER TABLE daily_plan_items ADD COLUMN required_subtasks INT UNSIGNED NOT NULL DEFAULT 1 AFTER sort_order'
+    );
+  }
 }
 
 async function applyNotificationsTable() {

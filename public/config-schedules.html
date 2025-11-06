@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>学迹 · 日期调度</title>
+    <link rel="stylesheet" href="/css/admin.css" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <aside class="sidebar" data-open="false">
+        <div class="sidebar__brand">
+          <span class="sidebar__logo">学迹</span>
+          <span class="sidebar__subtitle">Study Trail</span>
+        </div>
+        <div class="sidebar__profile">
+          <span class="avatar" id="sidebarAvatar">P</span>
+          <div>
+            <strong id="sidebarUserName">家长</strong>
+            <span class="role-pill">Parent</span>
+          </div>
+        </div>
+        <nav class="sidebar__nav">
+          <button class="nav-item" data-link="/admin.html?view=analytics">
+            <span>数据分析</span>
+          </button>
+          <div class="sidebar-section" data-section="approvals">
+            <button
+              type="button"
+              class="sidebar-section__toggle"
+              data-section-toggle
+              aria-expanded="true"
+              aria-controls="sectionApprovals"
+            >
+              <span>审批流</span>
+              <span class="sidebar-section__indicator" aria-hidden="true"></span>
+            </button>
+            <div
+              class="sidebar-section__content"
+              id="sectionApprovals"
+              data-section-content
+              aria-hidden="false"
+            >
+              <button class="nav-item" data-link="/admin.html?view=plan-approvals">
+                <span>计划审批</span>
+              </button>
+              <button class="nav-item" data-link="/admin.html?view=approvals">
+                <span>任务审批</span>
+              </button>
+            </div>
+          </div>
+          <div class="sidebar-section" data-section="config">
+            <button
+              type="button"
+              class="sidebar-section__toggle"
+              data-section-toggle
+              aria-expanded="true"
+              aria-controls="sectionConfig"
+            >
+              <span>配置中心</span>
+              <span class="sidebar-section__indicator" aria-hidden="true"></span>
+            </button>
+            <div
+              class="sidebar-section__content"
+              id="sectionConfig"
+              data-section-content
+              aria-hidden="false"
+            >
+              <button class="nav-item" data-link="/config.html?view=students">
+                <span>学生账号</span>
+              </button>
+              <button class="nav-item" data-link="/config.html?view=tasks">
+                <span>打卡任务</span>
+              </button>
+              <button class="nav-item nav-item--active" data-link="/config-schedules.html">
+                <span>日期调度</span>
+              </button>
+              <button class="nav-item" data-link="/config.html?view=assignments">
+                <span>任务关联</span>
+              </button>
+              <button class="nav-item" data-link="/config.html?view=rewards">
+                <span>积分商城</span>
+              </button>
+            </div>
+          </div>
+          <div class="sidebar-section" data-section="points">
+            <button
+              type="button"
+              class="sidebar-section__toggle"
+              data-section-toggle
+              aria-expanded="true"
+              aria-controls="sectionPoints"
+            >
+              <span>积分操作</span>
+              <span class="sidebar-section__indicator" aria-hidden="true"></span>
+            </button>
+            <div
+              class="sidebar-section__content"
+              id="sectionPoints"
+              data-section-content
+              aria-hidden="false"
+            >
+              <button class="nav-item" data-link="/admin.html?view=points">
+                <span>积分管理</span>
+              </button>
+              <button class="nav-item" data-link="/admin.html?view=redeem">
+                <span>积分兑换</span>
+              </button>
+            </div>
+          </div>
+          <button class="nav-item" data-link="/admin.html?view=notifications">
+            <span>消息中心</span>
+          </button>
+          <button class="nav-item" disabled>成长档案</button>
+        </nav>
+        <div class="sidebar__footer">
+          <button class="nav-item" id="logoutButton">退出登录</button>
+        </div>
+      </aside>
+
+      <div class="workspace">
+        <header class="topbar">
+          <div class="topbar__search">
+            <input type="search" placeholder="搜索…" disabled />
+          </div>
+          <div class="topbar__actions">
+            <button
+              type="button"
+              class="icon-button icon-button--badge"
+              id="notificationsButton"
+              data-link="/admin.html?view=notifications"
+              aria-label="消息中心"
+            >
+              <span class="icon icon-envelope" aria-hidden="true"></span>
+              <span class="badge" id="notificationsBadge" hidden>0</span>
+            </button>
+            <div class="user-chip">
+              <span class="avatar" id="topbarAvatar">P</span>
+              <div class="user-chip__meta">
+                <span id="topbarUserName">家长</span>
+                <span class="user-chip__role">Parent</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main class="content">
+          <section class="page-header schedule-page-header">
+            <div>
+              <h1>日期调度</h1>
+              <p class="page-subtitle">
+                为特殊日期配置任务展示策略，准备用更灵活的节奏陪孩子学习。
+              </p>
+            </div>
+            <div class="schedule-header-actions">
+              <button type="button" class="ghost-button" data-link="/config.html?view=tasks">
+                查看打卡任务
+              </button>
+            </div>
+          </section>
+
+          <section class="schedule-summary-grid">
+            <article class="schedule-summary-card" id="summaryActive">
+              <span class="schedule-summary-label">进行中</span>
+              <strong class="schedule-summary-value" id="summaryActiveValue">0</strong>
+              <p class="schedule-summary-note">当前正在生效的调度覆盖</p>
+            </article>
+            <article class="schedule-summary-card" id="summaryUpcoming">
+              <span class="schedule-summary-label">即将生效</span>
+              <strong class="schedule-summary-value" id="summaryUpcomingValue">0</strong>
+              <p class="schedule-summary-note">计划在未来 30 天启用</p>
+            </article>
+            <article class="schedule-summary-card" id="summaryTotal">
+              <span class="schedule-summary-label">全部调度</span>
+              <strong class="schedule-summary-value" id="summaryTotalValue">0</strong>
+              <p class="schedule-summary-note">历史累计创建的调度记录</p>
+            </article>
+          </section>
+
+          <div class="schedule-layout">
+            <section class="card schedule-board">
+              <header class="schedule-board__header">
+                <div class="schedule-board__text">
+                  <h2>调度时间轴</h2>
+                  <p class="schedule-board__subtitle">按状态筛选，快速查看即将生效的调整。</p>
+                  <div class="schedule-filters" role="tablist" aria-label="调度过滤">
+                    <button type="button" class="chip-button chip-button--active" data-filter="all" role="tab" aria-selected="true">
+                      全部
+                    </button>
+                    <button type="button" class="chip-button" data-filter="active" role="tab" aria-selected="false">
+                      进行中
+                    </button>
+                    <button type="button" class="chip-button" data-filter="upcoming" role="tab" aria-selected="false">
+                      即将生效
+                    </button>
+                    <button type="button" class="chip-button" data-filter="past" role="tab" aria-selected="false">
+                      已结束
+                    </button>
+                  </div>
+                </div>
+              </header>
+              <div class="schedule-board__body" id="scheduleBoard"></div>
+              <p class="page-message" id="scheduleMessage"></p>
+            </section>
+
+            <aside class="card schedule-form">
+              <header class="schedule-form__header">
+                <div>
+                  <h2>新增日期调度</h2>
+                  <p class="schedule-form__subtitle">设置覆盖区间与任务类型，自动套用到所有打卡任务。</p>
+                </div>
+              </header>
+              <form id="scheduleForm" class="form">
+                <div class="form-grid form-grid--compact">
+                  <label class="form-field">
+                    <span class="form-label">开始日期</span>
+                    <input type="date" name="startDate" required />
+                  </label>
+                  <label class="form-field">
+                    <span class="form-label">结束日期</span>
+                    <input type="date" name="endDate" required />
+                  </label>
+                </div>
+
+                <label class="form-field">
+                  <span class="form-label">任务展示策略</span>
+                  <div class="task-type-toggle" data-task-type-toggle>
+                    <input type="hidden" name="scheduleType" value="weekday" />
+                    <button type="button" class="chip-button chip-button--active" data-schedule="weekday">
+                      日常任务
+                    </button>
+                    <button type="button" class="chip-button" data-schedule="holiday">
+                      节假任务
+                    </button>
+                    <button type="button" class="chip-button" data-schedule="recurring">
+                      定期任务
+                    </button>
+                  </div>
+                </label>
+
+                <label class="form-field" data-recurring-fields hidden>
+                  <span class="form-label">定期执行日</span>
+                  <div class="task-weekday-toggle" data-weekday-toggle>
+                    <input type="hidden" name="recurringDayOfWeek" value="" />
+                    <button type="button" class="chip-button" data-weekday="1">周一</button>
+                    <button type="button" class="chip-button" data-weekday="2">周二</button>
+                    <button type="button" class="chip-button" data-weekday="3">周三</button>
+                    <button type="button" class="chip-button" data-weekday="4">周四</button>
+                    <button type="button" class="chip-button" data-weekday="5">周五</button>
+                    <button type="button" class="chip-button" data-weekday="6">周六</button>
+                    <button type="button" class="chip-button" data-weekday="0">周日</button>
+                  </div>
+                  <p class="form-hint">仅当选择“定期任务”时可用，用于指定每周固定的展示日。</p>
+                </label>
+
+                <label class="form-field">
+                  <span class="form-label">调度备注</span>
+                  <textarea name="note" rows="3" maxlength="120" placeholder="例如：期末复习周暂停晚间任务（选填）"></textarea>
+                </label>
+
+                <p class="form-message" id="scheduleFormMessage"></p>
+
+                <div class="form-actions">
+                  <button type="reset" class="ghost-button" id="scheduleResetBtn">清空</button>
+                  <button type="submit" class="primary-button">保存调度</button>
+                </div>
+              </form>
+              <footer class="schedule-form__footer">
+                <p>提示：调度日期为闭区间。结束日期之后，系统自动恢复默认任务展示。</p>
+              </footer>
+            </aside>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="/js/admin/configSchedules.js"></script>
+  </body>
+</html>

@@ -554,7 +554,10 @@ export function createTaskController(state, elements, showPageMessage) {
     });
 
     if (elements.uploadDropzone) {
-      const openPicker = () => {
+      const openPicker = (event) => {
+        if (event) {
+          event.preventDefault();
+        }
         if (!elements.proofInput?.disabled) {
           elements.proofInput.click();
         }
@@ -564,7 +567,7 @@ export function createTaskController(state, elements, showPageMessage) {
       elements.uploadDropzone.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          openPicker();
+          openPicker(event);
         }
       });
 

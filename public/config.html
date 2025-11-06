@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>学迹 · 配置中心</title>
+    <link rel="stylesheet" href="/css/admin.css" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <aside class="sidebar" data-open="false">
+        <div class="sidebar__brand">
+          <span class="sidebar__logo">学迹</span>
+          <span class="sidebar__subtitle">Study Trail</span>
+        </div>
+        <div class="sidebar__profile">
+          <span class="avatar" id="sidebarAvatar">P</span>
+          <div>
+            <strong id="sidebarUserName">家长</strong>
+            <span class="role-pill">Parent</span>
+          </div>
+        </div>
+        <nav class="sidebar__nav">
+          <button class="nav-item" data-link="/admin.html?view=analytics" id="navAnalytics">
+            <span>数据分析</span>
+          </button>
+          <div class="sidebar-section" data-section="approvals">
+            <button
+              type="button"
+              class="sidebar-section__toggle"
+              data-section-toggle
+              aria-expanded="true"
+              aria-controls="sectionApprovals"
+            >
+              <span>审批流</span>
+              <span class="sidebar-section__indicator" aria-hidden="true"></span>
+            </button>
+            <div
+              class="sidebar-section__content"
+              id="sectionApprovals"
+              data-section-content
+              aria-hidden="false"
+            >
+              <button class="nav-item" data-link="/admin.html?view=plan-approvals" id="navPlanApprovals">
+                <span>计划审批</span>
+              </button>
+              <button class="nav-item" data-link="/admin.html?view=approvals" id="navApprovals">
+                <span>任务审批</span>
+              </button>
+            </div>
+          </div>
+          <div class="sidebar-section" data-section="config">
+            <button
+              type="button"
+              class="sidebar-section__toggle"
+              data-section-toggle
+              aria-expanded="true"
+              aria-controls="sectionConfig"
+            >
+              <span>配置中心</span>
+              <span class="sidebar-section__indicator" aria-hidden="true"></span>
+            </button>
+            <div
+              class="sidebar-section__content"
+              id="sectionConfig"
+              data-section-content
+              aria-hidden="false"
+            >
+              <button class="nav-item nav-item--active" data-view="students" id="navStudents">
+                <span>学生账号</span>
+              </button>
+              <button class="nav-item" data-view="tasks" id="navTasks">
+                <span>打卡任务</span>
+              </button>
+              <button class="nav-item" data-link="/config-schedules.html" id="navSchedules">
+                <span>日期调度</span>
+              </button>
+              <button class="nav-item" data-view="assignments" id="navAssignments">
+                <span>任务关联</span>
+              </button>
+              <button class="nav-item" data-view="rewards" id="navRewards">
+                <span>积分商城</span>
+              </button>
+            </div>
+          </div>
+          <div class="sidebar-section" data-section="points">
+            <button
+              type="button"
+              class="sidebar-section__toggle"
+              data-section-toggle
+              aria-expanded="true"
+              aria-controls="sectionPoints"
+            >
+              <span>积分操作</span>
+              <span class="sidebar-section__indicator" aria-hidden="true"></span>
+            </button>
+            <div
+              class="sidebar-section__content"
+              id="sectionPoints"
+              data-section-content
+              aria-hidden="false"
+            >
+              <button class="nav-item" data-link="/admin.html?view=points" id="navPoints">
+                <span>积分管理</span>
+              </button>
+              <button class="nav-item" data-link="/admin.html?view=redeem" id="navRedeem">
+                <span>积分兑换</span>
+              </button>
+            </div>
+          </div>
+          <button class="nav-item" data-link="/admin.html?view=notifications" id="navNotifications">
+            <span>消息中心</span>
+          </button>
+        </nav>
+        <div class="sidebar__footer">
+          <button class="nav-item" id="logoutButton">退出登录</button>
+        </div>
+      </aside>
+
+      <div class="workspace">
+        <header class="topbar">
+          <div class="topbar__search">
+            <input type="search" placeholder="搜索..." disabled />
+          </div>
+          <div class="topbar__actions">
+            <button
+              type="button"
+              class="icon-button icon-button--badge"
+              id="notificationsButton"
+              data-link="/admin.html?view=notifications"
+              aria-label="消息中心"
+            >
+              <span class="icon icon-envelope" aria-hidden="true"></span>
+              <span class="badge" id="notificationsBadge" hidden>0</span>
+            </button>
+            <div class="user-chip">
+              <span class="avatar" id="topbarAvatar">P</span>
+              <div class="user-chip__meta">
+                <span id="topbarUserName">家长</span>
+                <span class="user-chip__role">Parent</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main class="content">
+          <section class="view" data-view="students">
+            <div class="page-header">
+              <div>
+                <h1>学生账号</h1>
+                <p class="page-subtitle">管理和维护绑定的学生登录信息。</p>
+              </div>
+              <div class="page-actions">
+                <button type="button" class="primary-button" id="addStudentBtn">添加学生</button>
+              </div>
+            </div>
+            <p class="page-message" id="studentMessage"></p>
+            <section class="card">
+              <header class="card__header">
+                <h2>账号列表</h2>
+              </header>
+              <div class="table-container" id="studentList"></div>
+            </section>
+          </section>
+
+          <section class="view" data-view="tasks" hidden>
+            <div class="page-header">
+              <div>
+                <h1>打卡任务</h1>
+                <p class="page-subtitle">配置每日打卡任务，统一管理默认展示策略。</p>
+              </div>
+              <div class="page-actions">
+                <button type="button" class="primary-button" id="addTaskBtn">新建任务</button>
+              </div>
+            </div>
+            <p class="page-message" id="taskMessage"></p>
+            <section class="card">
+              <header class="card__header">
+                <h2>任务列表</h2>
+              </header>
+              <div class="table-container" id="taskList"></div>
+            </section>
+            <section class="card card--callout">
+              <div class="card__header">
+                <h2>日期调度移至独立页面</h2>
+                <p class="card__subtitle">
+                  为考试周、假期等特殊场景定制任务，请前往「日期调度」统一管理。
+                </p>
+              </div>
+              <div class="card__actions">
+                <button type="button" class="ghost-button" data-link="/config-schedules.html">
+                  前往日期调度
+                </button>
+              </div>
+            </section>
+          </section>
+
+          <section class="view" data-view="assignments" hidden>
+            <div class="page-header">
+              <div>
+                <h1>任务关联</h1>
+                <p class="page-subtitle">为学生分配打卡任务并保持同步更新。</p>
+              </div>
+              <div class="page-actions">
+                <button type="button" class="primary-button" id="addAssignmentBtn">添加关联</button>
+              </div>
+            </div>
+            <p class="page-message" id="assignmentMessage"></p>
+            <section class="card">
+              <header class="card__header">
+                <h2>关联列表</h2>
+              </header>
+              <div class="table-container" id="assignmentList"></div>
+            </section>
+          </section>
+
+          <section class="view" data-view="rewards" hidden>
+            <div class="page-header">
+              <div>
+                <h1>积分商城</h1>
+                <p class="page-subtitle">维护兑换奖励，管理库存与上下架状态。</p>
+              </div>
+              <div class="page-actions">
+                <button type="button" class="primary-button" id="addRewardBtn">新增奖励</button>
+              </div>
+            </div>
+            <p class="page-message" id="rewardMessage"></p>
+            <section class="card">
+              <header class="card__header">
+                <h2>奖励列表</h2>
+              </header>
+              <div class="table-container" id="rewardList"></div>
+            </section>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div class="modal" id="taskModal" hidden>
+      <div class="modal__backdrop" data-action="close-modal"></div>
+      <div class="modal__dialog">
+        <header class="modal__header">
+          <h2 id="taskModalTitle">新建任务</h2>
+          <button type="button" class="icon-button" id="closeTaskModal" aria-label="关闭">×</button>
+        </header>
+        <form id="taskForm" class="modal__form">
+          <label class="form-field">
+            <span class="form-label">任务标题</span>
+            <input type="text" name="title" required maxlength="150" placeholder="例如：语文朗读 15 分钟" />
+          </label>
+
+          <label class="form-field">
+            <span class="form-label">任务说明</span>
+            <textarea name="description" rows="4" placeholder="补充任务要求或奖励机制"></textarea>
+          </label>
+
+          <label class="form-field">
+            <span class="form-label">任务类型</span>
+            <div class="task-type-toggle" data-task-type-toggle>
+              <input type="hidden" name="scheduleType" value="weekday" />
+              <button type="button" class="chip-button chip-button--active" data-schedule="weekday">
+                日常任务（周一至周五）
+              </button>
+              <button type="button" class="chip-button" data-schedule="holiday">
+                节假任务（周末及放假日）
+              </button>
+              <button type="button" class="chip-button" data-schedule="recurring">
+                定期任务（每周固定）
+              </button>
+            </div>
+          </label>
+          <label class="form-field" data-recurring-fields hidden>
+            <span class="form-label">选择每周的执行日</span>
+            <div class="task-weekday-toggle" data-weekday-toggle>
+              <input type="hidden" name="recurringDayOfWeek" value="" />
+              <button type="button" class="chip-button" data-weekday="1">周一</button>
+              <button type="button" class="chip-button" data-weekday="2">周二</button>
+              <button type="button" class="chip-button" data-weekday="3">周三</button>
+              <button type="button" class="chip-button" data-weekday="4">周四</button>
+              <button type="button" class="chip-button" data-weekday="5">周五</button>
+              <button type="button" class="chip-button" data-weekday="6">周六</button>
+              <button type="button" class="chip-button" data-weekday="0">周日</button>
+            </div>
+            <p class="form-hint">仅限定期任务设置，每周会在所选日期显示给学生。</p>
+          </label>
+
+          <label class="form-field">
+            <span class="form-label">任务积分</span>
+            <input type="number" name="points" min="0" step="1" required placeholder="例如：10" />
+          </label>
+
+          <div class="form-grid">
+            <label class="form-field">
+              <span class="form-label">开始日期</span>
+              <input type="date" name="startDate" />
+            </label>
+            <label class="form-field">
+              <span class="form-label">结束日期</span>
+              <input type="date" name="endDate" />
+            </label>
+          </div>
+
+          <p class="form-message" id="taskFormMessage"></p>
+
+          <div class="modal__actions">
+            <button type="button" class="ghost-button" id="cancelTaskBtn">取消</button>
+            <button type="submit" class="primary-button">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal" id="studentModal" hidden>
+      <div class="modal__backdrop" data-action="close-modal"></div>
+      <div class="modal__dialog">
+        <header class="modal__header">
+          <h2 id="studentModalTitle">添加学生</h2>
+          <button type="button" class="icon-button" id="closeStudentModal" aria-label="关闭">×</button>
+        </header>
+        <form id="studentForm" class="modal__form">
+          <label class="form-field">
+            <span class="form-label">学生姓名</span>
+            <input type="text" name="name" required maxlength="80" placeholder="例如：小明" />
+          </label>
+          <label class="form-field">
+            <span class="form-label">登录名</span>
+            <input type="text" name="loginName" required maxlength="64" placeholder="例如：xiaoming01" />
+          </label>
+          <label class="form-field">
+            <span class="form-label">登录密码</span>
+            <input type="password" name="password" minlength="6" placeholder="新密码（编辑时可留空）" />
+          </label>
+
+          <p class="form-message" id="studentFormMessage"></p>
+
+          <div class="modal__actions">
+            <button type="button" class="ghost-button" id="cancelStudentBtn">取消</button>
+            <button type="submit" class="primary-button">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal" id="assignmentModal" hidden>
+      <div class="modal__backdrop" data-action="close-modal"></div>
+      <div class="modal__dialog">
+        <header class="modal__header">
+          <h2 id="assignmentModalTitle">添加关联</h2>
+          <button type="button" class="icon-button" id="closeAssignmentModal" aria-label="关闭">×</button>
+        </header>
+        <form id="assignmentForm" class="modal__form">
+          <label class="form-field">
+            <span class="form-label">选择学生</span>
+            <select name="studentId" required></select>
+          </label>
+
+          <div class="form-field">
+            <span class="form-label">选择打卡任务</span>
+            <div class="form-hint">可多选，至少选择一项以建立关联。</div>
+            <div data-assignment-tasks class="assignment-task-options"></div>
+          </div>
+
+          <p class="form-message" id="assignmentFormMessage"></p>
+
+          <div class="modal__actions">
+            <button type="button" class="ghost-button" id="cancelAssignmentBtn">取消</button>
+            <button type="submit" class="primary-button">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal" id="rewardModal" hidden>
+      <div class="modal__backdrop" data-action="close-modal"></div>
+      <div class="modal__dialog">
+        <header class="modal__header">
+          <h2 id="rewardModalTitle">新增奖励</h2>
+          <button type="button" class="icon-button" id="closeRewardModal" aria-label="关闭">×</button>
+        </header>
+        <form id="rewardForm" class="modal__form">
+          <label class="form-field">
+            <span class="form-label">奖励名称</span>
+            <input type="text" name="title" required maxlength="150" placeholder="例如：周末看电影" />
+          </label>
+
+          <div class="form-grid">
+            <label class="form-field">
+              <span class="form-label">所需积分</span>
+              <input type="number" name="pointsCost" min="0" step="1" required placeholder="例如：100" />
+            </label>
+            <label class="form-field">
+              <span class="form-label">库存数量</span>
+              <input
+                type="number"
+                name="stock"
+                min="0"
+                step="1"
+                placeholder="留空表示不限量"
+              />
+            </label>
+          </div>
+
+          <label class="form-field">
+            <span class="form-label">奖励说明</span>
+            <textarea name="description" rows="3" placeholder="补充奖励细节或兑换说明"></textarea>
+          </label>
+
+          <label class="form-field form-field--inline">
+            <span class="form-label">状态</span>
+            <label class="checkbox">
+              <input type="checkbox" name="isActive" checked />
+              <span>上架可兑换</span>
+            </label>
+          </label>
+
+          <p class="form-message" id="rewardFormMessage"></p>
+
+          <div class="modal__actions">
+            <button type="button" class="ghost-button" id="cancelRewardBtn">取消</button>
+            <button type="submit" class="primary-button">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script type="module" src="/js/admin/config.js"></script>
+  </body>
+</html>

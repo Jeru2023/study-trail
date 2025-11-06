@@ -54,7 +54,27 @@ async function run() {
 
   try {
     await pool.query(
-      "ALTER TABLE tasks ADD COLUMN schedule_type ENUM('weekday','holiday') NOT NULL DEFAULT 'weekday' AFTER points"
+      "ALTER TABLE tasks ADD COLUMN schedule_type ENUM('weekday','holiday','recurring') NOT NULL DEFAULT 'weekday' AFTER points"
+    );
+  } catch (error) {
+    if (error.code !== 'ER_DUP_FIELDNAME') {
+      throw error;
+    }
+  }
+
+  try {
+    await pool.query(
+      "ALTER TABLE tasks MODIFY COLUMN schedule_type ENUM('weekday','holiday','recurring') NOT NULL DEFAULT 'weekday'"
+    );
+  } catch (error) {
+    if (error.code !== 'ER_NO_SUCH_TABLE') {
+      throw error;
+    }
+  }
+
+  try {
+    await pool.query(
+      'ALTER TABLE tasks ADD COLUMN recurring_day_of_week TINYINT UNSIGNED NULL AFTER schedule_type'
     );
   } catch (error) {
     if (error.code !== 'ER_DUP_FIELDNAME') {

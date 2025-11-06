@@ -1,7 +1,18 @@
 import { pool } from '../db/pool.js';
 import { ensureTaskSchedulingArtifacts } from '../db/schemaUpgrades.js';
 
-const SCHEDULE_TYPES = new Set(['weekday', 'holiday']);
+const SCHEDULE_TYPES = new Set(['weekday', 'holiday', 'recurring']);
+
+function normalizeRecurringDay(value) {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  const parsed = Number.parseInt(String(value).trim(), 10);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 6) {
+    throw new Error('RECURRING_DAY_INVALID');
+  }
+  return parsed;
+}
 
 function normalizeScheduleType(value) {
   const trimmed = String(value ?? '').trim();
@@ -14,13 +25,33 @@ function mapTaskRow(row) {
   const parsedPoints = Number.parseInt(String(plain.points ?? '').trim(), 10);
   const normalizedPoints = Number.isNaN(parsedPoints) || parsedPoints < 0 ? 0 : parsedPoints;
   const scheduleType = normalizeScheduleType(plain.schedule_type);
-  return { ...plain, points: normalizedPoints, schedule_type: scheduleType };
+  const recurringDay =
+    plain.recurring_day_of_week === null || plain.recurring_day_of_week === undefined
+      ? null
+      : Number.parseInt(String(plain.recurring_day_of_week), 10);
+  const normalizedRecurringDay =
+    Number.isInteger(recurringDay) && recurringDay >= 0 && recurringDay <= 6 ? recurringDay : null;
+  return {
+    ...plain,
+    points: normalizedPoints,
+    schedule_type: scheduleType,
+    recurring_day_of_week: normalizedRecurringDay
+  };
 }
 
 export async function listTasksByParent(parentId) {
   await ensureTaskSchedulingArtifacts();
   const [rows] = await pool.query(
-    `SELECT id, title, description, points, schedule_type, start_date, end_date, created_at, updated_at
+    `SELECT id,
+            title,
+            description,
+            points,
+            schedule_type,
+            recurring_day_of_week,
+            start_date,
+            end_date,
+            created_at,
+            updated_at
      FROM tasks
      WHERE parent_id = ?
      ORDER BY created_at DESC`,
@@ -32,7 +63,16 @@ export async function listTasksByParent(parentId) {
 export async function findTaskById(parentId, taskId) {
   await ensureTaskSchedulingArtifacts();
   const [rows] = await pool.query(
-    `SELECT id, title, description, points, schedule_type, start_date, end_date, created_at, updated_at
+    `SELECT id,
+            title,
+            description,
+            points,
+            schedule_type,
+            recurring_day_of_week,
+            start_date,
+            end_date,
+            created_at,
+            updated_at
      FROM tasks
      WHERE id = ? AND parent_id = ?
      LIMIT 1`,
@@ -49,16 +89,32 @@ export async function createTask(parentId, payload) {
     points,
     startDate = null,
     endDate = null,
-    scheduleType = 'weekday'
+    scheduleType = 'weekday',
+    recurringDayOfWeek = null
   } = payload;
   const numericPoints = Number.parseInt(String(points ?? '').trim(), 10);
   const normalizedPoints = Number.isNaN(numericPoints) || numericPoints < 0 ? 0 : numericPoints;
   const normalizedScheduleType = normalizeScheduleType(scheduleType);
+  const normalizedRecurringDay = normalizeRecurringDay(recurringDayOfWeek);
+
+  if (normalizedScheduleType === 'recurring' && normalizedRecurringDay === null) {
+    throw new Error('RECURRING_DAY_REQUIRED');
+  }
 
   const [result] = await pool.query(
-    `INSERT INTO tasks (parent_id, title, description, points, schedule_type, start_date, end_date)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [parentId, title, description, normalizedPoints, normalizedScheduleType, startDate, endDate]
+    `INSERT INTO tasks
+      (parent_id, title, description, points, schedule_type, recurring_day_of_week, start_date, end_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      parentId,
+      title,
+      description,
+      normalizedPoints,
+      normalizedScheduleType,
+      normalizedScheduleType === 'recurring' ? normalizedRecurringDay : null,
+      startDate,
+      endDate
+    ]
   );
 
   return findTaskById(parentId, result.insertId);
@@ -72,21 +128,34 @@ export async function updateTask(parentId, taskId, payload) {
     points,
     startDate = null,
     endDate = null,
-    scheduleType = 'weekday'
+    scheduleType = 'weekday',
+    recurringDayOfWeek = null
   } = payload;
   const numericPoints = Number.parseInt(String(points ?? '').trim(), 10);
   const normalizedPoints = Number.isNaN(numericPoints) || numericPoints < 0 ? 0 : numericPoints;
   const normalizedScheduleType = normalizeScheduleType(scheduleType);
+  const normalizedRecurringDay = normalizeRecurringDay(recurringDayOfWeek);
+
+  if (normalizedScheduleType === 'recurring' && normalizedRecurringDay === null) {
+    throw new Error('RECURRING_DAY_REQUIRED');
+  }
 
   await pool.query(
     `UPDATE tasks
-     SET title = ?, description = ?, points = ?, schedule_type = ?, start_date = ?, end_date = ?
+     SET title = ?,
+         description = ?,
+         points = ?,
+         schedule_type = ?,
+         recurring_day_of_week = ?,
+         start_date = ?,
+         end_date = ?
      WHERE id = ? AND parent_id = ?`,
     [
       title,
       description,
       normalizedPoints,
       normalizedScheduleType,
+      normalizedScheduleType === 'recurring' ? normalizedRecurringDay : null,
       startDate,
       endDate,
       taskId,

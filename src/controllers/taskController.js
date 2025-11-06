@@ -22,11 +22,12 @@ const RESPONSE_TEXT = {
   updateFailed: '\u66f4\u65b0\u4efb\u52a1\u5931\u8d25',
   deleteFailed: '\u5220\u9664\u4efb\u52a1\u5931\u8d25',
   scheduleInvalid: '\u8bf7\u9009\u62e9\u6b63\u786e\u7684\u4efb\u52a1\u5468\u671f',
+  recurringDayInvalid: '\u8bf7\u9009\u62e9\u6bcf\u5468\u7684\u56fa\u5b9a\u65e5\u671f',
   overrideDateInvalid: '\u8bf7\u586b\u5165\u6b63\u786e\u7684\u65e5\u671f',
   overrideRangeInvalid: '\u7ed3\u675f\u65e5\u671f\u5fc5\u987b\u665a\u4e8e\u6216\u7b49\u4e8e\u5f00\u59cb\u65e5\u671f'
 };
 
-const ALLOWED_SCHEDULE_TYPES = new Set(['weekday', 'holiday']);
+const ALLOWED_SCHEDULE_TYPES = new Set(['weekday', 'holiday', 'recurring']);
 
 function ensureParentSession(req, res) {
   const sessionUser = req.session.user;
@@ -75,6 +76,17 @@ function normalizeScheduleType(input) {
   return normalized;
 }
 
+function normalizeRecurringDay(input) {
+  if (input === undefined || input === null || input === '') {
+    return null;
+  }
+  const parsed = Number.parseInt(String(input).trim(), 10);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 6) {
+    throw new Error('INVALID_RECURRING_DAY');
+  }
+  return parsed;
+}
+
 function parseTaskPayload(body) {
   const title = body.title?.trim();
   const description = body.description?.trim() || null;
@@ -95,11 +107,21 @@ function parseTaskPayload(body) {
     throw new Error('POINTS_INVALID');
   }
 
+  const scheduleType = normalizeScheduleType(body.scheduleType ?? body.schedule_type);
+  const recurringDay = normalizeRecurringDay(
+    body.recurringDayOfWeek ?? body.recurring_day_of_week ?? null
+  );
+
+  if (scheduleType === 'recurring' && recurringDay === null) {
+    throw new Error('RECURRING_DAY_REQUIRED');
+  }
+
   const payload = {
     title,
     description,
     points,
-    scheduleType: normalizeScheduleType(body.scheduleType ?? body.schedule_type)
+    scheduleType,
+    recurringDayOfWeek: scheduleType === 'recurring' ? recurringDay : null
   };
 
   if (startDate && Number.isNaN(startDate.getTime())) {
@@ -143,6 +165,13 @@ export async function createTaskHandler(req, res) {
     if (error.message === 'INVALID_SCHEDULE_TYPE') {
       return res.status(400).json({ message: RESPONSE_TEXT.scheduleInvalid });
     }
+    if (
+      error.message === 'INVALID_RECURRING_DAY' ||
+      error.message === 'RECURRING_DAY_INVALID' ||
+      error.message === 'RECURRING_DAY_REQUIRED'
+    ) {
+      return res.status(400).json({ message: RESPONSE_TEXT.recurringDayInvalid });
+    }
     if (error.message === 'INVALID_START_DATE' || error.message === 'INVALID_END_DATE') {
       return res.status(400).json({ message: RESPONSE_TEXT.dateInvalid });
     }
@@ -179,6 +208,13 @@ export async function updateTaskHandler(req, res) {
     }
     if (error.message === 'INVALID_SCHEDULE_TYPE') {
       return res.status(400).json({ message: RESPONSE_TEXT.scheduleInvalid });
+    }
+    if (
+      error.message === 'INVALID_RECURRING_DAY' ||
+      error.message === 'RECURRING_DAY_INVALID' ||
+      error.message === 'RECURRING_DAY_REQUIRED'
+    ) {
+      return res.status(400).json({ message: RESPONSE_TEXT.recurringDayInvalid });
     }
     if (error.message === 'INVALID_START_DATE' || error.message === 'INVALID_END_DATE') {
       return res.status(400).json({ message: RESPONSE_TEXT.dateInvalid });

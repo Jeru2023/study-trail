@@ -72,7 +72,7 @@ export async function addSubtask(req, res) {
       res.status(404).json({ message: '未找到对应任务' });
       return;
     }
-    if (error.message === 'TASK_DATE_OUT_OF_RANGE') {
+    if (error.message === 'TASK_DATE_OUT_OF_RANGE' || error.message === 'TASK_NOT_SCHEDULED') {
       res.status(400).json({ message: '该任务今日不可打卡' });
       return;
     }

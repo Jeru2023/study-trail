@@ -22,7 +22,8 @@ function aggregateAssignments(rows) {
       id: row.task_id,
       title: row.task_title,
       points: row.task_points,
-      scheduleType: row.task_schedule_type
+      scheduleType: row.task_schedule_type,
+      recurringDayOfWeek: row.task_recurring_day
     });
     entry.taskIds.push(row.task_id);
   });
@@ -40,7 +41,8 @@ export async function listAssignmentsByParent(parentId) {
        s.login_name AS student_login_name,
        t.title AS task_title,
        t.points AS task_points,
-       t.schedule_type AS task_schedule_type
+       t.schedule_type AS task_schedule_type,
+       t.recurring_day_of_week AS task_recurring_day
      FROM student_tasks st
      INNER JOIN users s ON st.student_id = s.id AND s.role = 'student'
      INNER JOIN tasks t ON st.task_id = t.id
