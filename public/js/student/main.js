@@ -10,6 +10,7 @@ import { renderStudentSidebar } from '../components/side_bar_student.js';
 import { createTaskController } from './tasks.js';
 import { createStoreController } from './store.js';
 import { createPlanController } from './plan.js';
+import { createLeaderboardController } from './leaderboard.js';
 
 const sidebarRoot = qs('[data-component="student-sidebar"]');
 renderStudentSidebar(sidebarRoot);
@@ -49,7 +50,8 @@ const state = {
   notifications: [],
   notificationsUnread: 0,
   plan: null,
-  planStatus: 'draft'
+  planStatus: 'draft',
+  leaderboardLoaded: false
 };
 
 const elements = {
@@ -61,6 +63,7 @@ const elements = {
   navPlan: qs('#studentNavPlan'),
   navTasks: qs('#studentNavTasks'),
   navStore: qs('#studentNavStore'),
+  navLeaderboard: qs('#studentNavLeaderboard'),
   navMessages: qs('#studentNavMessages'),
   views: Array.from(document.querySelectorAll('.student-view')),
   pageMessage: qs('#studentPageMessage'),
@@ -68,7 +71,14 @@ const elements = {
   notificationsBadge: qs('#studentNotificationsBadge'),
   notificationList: qs('#studentNotificationList'),
   notificationsMessage: qs('#studentNotificationsMessage'),
-  notificationsMarkAllBtn: qs('#studentMarkAllNotifications')
+  notificationsMarkAllBtn: qs('#studentMarkAllNotifications'),
+  leaderboard: {
+    message: qs('#studentLeaderboardMessage'),
+    list: qs('#leaderboardList'),
+    feed: qs('#leaderboardFeed'),
+    range: qs('#studentLeaderboardRange'),
+    rangeButtons: null
+  }
 };
 
 const planController = createPlanController(
@@ -110,6 +120,20 @@ const storeController = createStoreController(state, {
   list: qs('#storeList'),
   message: qs('#storeMessage')
 });
+
+const leaderboardController = createLeaderboardController(
+  state,
+  {
+    message: elements.leaderboard.message,
+    list: elements.leaderboard.list,
+    feed: elements.leaderboard.feed,
+    range: elements.leaderboard.range,
+    rangeButtons: elements.leaderboard.range
+      ? Array.from(elements.leaderboard.range.querySelectorAll('[data-range]'))
+      : []
+  },
+  showPageMessage
+);
 
 function formatDateLabel(dateString) {
   const date = parseDateString(dateString) || new Date();
@@ -272,7 +296,7 @@ function getActiveView() {
 }
 
 function highlightNav(view) {
-  [elements.navPlan, elements.navTasks, elements.navStore, elements.navMessages].forEach((button) => {
+  [elements.navPlan, elements.navTasks, elements.navStore, elements.navLeaderboard, elements.navMessages].forEach((button) => {
     if (!button) return;
     const active = button.dataset.view === view;
     button.classList.toggle('nav-item--active', active);
@@ -294,6 +318,8 @@ function updateHeaderTitle(view) {
     elements.headerTitle.textContent = '每日打卡';
   } else if (view === 'store') {
     elements.headerTitle.textContent = '积分商城';
+  } else if (view === 'leaderboard') {
+    elements.headerTitle.textContent = '积分榜';
   } else if (view === 'messages') {
     elements.headerTitle.textContent = '消息中心';
   } else {
@@ -324,6 +350,8 @@ async function changeView(view) {
     await planController.loadPlan({ silent: true });
   } else if (view === 'store') {
     await storeController.loadStore({ silent: state.storeLoaded });
+  } else if (view === 'leaderboard') {
+    leaderboardController.ensureLoaded();
   } else if (view === 'messages') {
     await loadNotifications({ markRead: true });
   }
@@ -368,6 +396,12 @@ function registerEvents() {
     elements.navStore.addEventListener('click', (event) => {
       event.preventDefault();
       changeView('store');
+    });
+  }
+  if (elements.navLeaderboard) {
+    elements.navLeaderboard.addEventListener('click', (event) => {
+      event.preventDefault();
+      changeView('leaderboard');
     });
   }
   if (elements.navMessages) {

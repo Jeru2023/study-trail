@@ -17,6 +17,7 @@ import pointRoutes from './routes/pointRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import parentSettingsRoutes from './routes/parentSettingsRoutes.js';
+import studentPointRoutes from './routes/studentPointRoutes.js';
 import {
   getPlanRewardSetting,
   updatePlanRewardSetting
@@ -76,6 +77,7 @@ app.use('/api/student-tasks', (req, _res, next) => {
 });
 app.use('/api/student-tasks', studentTaskRoutes);
 app.use('/api/student/plans', studentPlanRoutes);
+app.use('/api/student/points', studentPointRoutes);
 app.use('/api/student', studentDailyTaskRoutes);
 app.use('/api/approvals', parentApprovalRoutes);
 app.use('/api/parent/plans', parentPlanRoutes);

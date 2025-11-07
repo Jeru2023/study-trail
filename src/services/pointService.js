@@ -47,6 +47,14 @@ function mapLedgerRow(row) {
   };
 }
 
+function mapLedgerFeedRow(row) {
+  return {
+    ...mapLedgerRow(row),
+    studentName: row.student_name || null,
+    studentLoginName: row.student_login_name || null
+  };
+}
+
 function mapPointPreset(row) {
   if (!row) return null;
   return {
@@ -195,6 +203,55 @@ export async function listStudentLedgerEntries({
   );
 
   return rows.map(mapLedgerRow);
+}
+
+export async function listParentLedgerFeed({ parentId, limit = 50, rangeKey, studentId } = {}) {
+  const normalizedLimit =
+    Number.isInteger(limit) && limit > 0 && limit <= 200 ? limit : 50;
+  const conditions = ['sph.parent_id = ?'];
+  const params = [parentId];
+
+  switch ((rangeKey || '').trim().toLowerCase()) {
+    case 'today':
+      conditions.push('DATE(sph.created_at) = CURDATE()');
+      break;
+    case 'week':
+      conditions.push('sph.created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)');
+      break;
+    case 'month':
+      conditions.push('sph.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)');
+      break;
+    case 'all':
+    default:
+      break;
+  }
+
+  if (Number.isInteger(studentId) && studentId > 0) {
+    conditions.push('sph.student_id = ?');
+    params.push(studentId);
+  }
+
+  const [rows] = await pool.query(
+    `
+      SELECT sph.*,
+             t.title AS task_title,
+             r.title AS reward_title,
+             dp.plan_date,
+             s.display_name AS student_name,
+             s.login_name AS student_login_name
+        FROM student_points_history sph
+        INNER JOIN users s ON s.id = sph.student_id
+        LEFT JOIN tasks t ON sph.task_id = t.id
+        LEFT JOIN reward_items r ON sph.reward_id = r.id
+        LEFT JOIN daily_plans dp ON sph.plan_id = dp.id
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY sph.created_at DESC, sph.id DESC
+       LIMIT ?
+    `,
+    [...params, normalizedLimit]
+  );
+
+  return rows.map(mapLedgerFeedRow);
 }
 
 async function insertLedgerEntry(connection, entry) {

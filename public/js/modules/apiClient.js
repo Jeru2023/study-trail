@@ -189,6 +189,25 @@ export function submitStudentPlan(payload) {
   return request('/api/student/plans/submit', { method: 'POST', data: payload });
 }
 
+export function fetchStudentLeaderboard() {
+  return request('/api/student/points/leaderboard');
+}
+
+export function fetchStudentPointFeed(limit, rangeKey, studentId) {
+  const params = new URLSearchParams();
+  if (limit) {
+    params.set('limit', limit);
+  }
+  if (rangeKey) {
+    params.set('rangeKey', rangeKey);
+  }
+  if (studentId) {
+    params.set('studentId', studentId);
+  }
+  const query = params.toString();
+  return request(`/api/student/points/feed${query ? `?${query}` : ''}`);
+}
+
 export function fetchApprovalEntries(date) {
   const search = date ? `?date=${encodeURIComponent(date)}` : '';
   return request(`/api/approvals${search}`);

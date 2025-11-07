@@ -23,6 +23,9 @@ export function renderStudentSidebar(root) {
       <button class="nav-item" data-view="store" id="studentNavStore">
         <span>积分商城</span>
       </button>
+      <button class="nav-item" data-view="leaderboard" id="studentNavLeaderboard">
+        <span>积分榜</span>
+      </button>
       <button class="nav-item" data-view="messages" id="studentNavMessages">
         <span>消息中心</span>
       </button>

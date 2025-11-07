@@ -86,6 +86,44 @@
             </section>
           </section>
 
+          <section class="student-view" data-view="leaderboard" hidden>
+            <section class="student-leaderboard" id="studentLeaderboardSection">
+              <div class="student-leaderboard__controls">
+                <p class="student-leaderboard__hint">了解和同学的积分差距，看看最近的加减分动态。</p>
+                <div class="leaderboard-range" id="studentLeaderboardRange">
+                  <input type="hidden" id="studentLeaderboardRangeInput" value="today" />
+                  <button type="button" class="chip-button chip-button--active" data-range="today">
+                    今日
+                  </button>
+                  <button type="button" class="chip-button" data-range="week">
+                    最近一周
+                  </button>
+                  <button type="button" class="chip-button" data-range="month">
+                    最近一个月
+                  </button>
+                  <button type="button" class="chip-button" data-range="all">
+                    全部
+                  </button>
+                </div>
+              </div>
+              <p class="page-message" id="studentLeaderboardMessage"></p>
+              <div class="student-leaderboard__content">
+                <section class="leaderboard-card">
+                  <header class="leaderboard-card__header">
+                    <h3>积分排名</h3>
+                  </header>
+                  <ol class="leaderboard-list" id="leaderboardList"></ol>
+                </section>
+                <section class="leaderboard-card">
+                  <header class="leaderboard-card__header">
+                    <h3>加减分动态</h3>
+                  </header>
+                  <ul class="leaderboard-feed" id="leaderboardFeed"></ul>
+                </section>
+              </div>
+            </section>
+          </section>
+
           <section class="student-view" data-view="messages" hidden>
             <div class="student-messages">
               <div class="student-messages__header">
