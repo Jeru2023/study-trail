@@ -88,10 +88,21 @@ export async function approvePlan(req, res) {
     return;
   }
 
+  let awardPoints = null;
+  if (req.body && Object.prototype.hasOwnProperty.call(req.body, 'points')) {
+    const parsedPoints = Number.parseInt(String(req.body.points).trim(), 10);
+    if (Number.isNaN(parsedPoints) || parsedPoints < 0) {
+      res.status(400).json({ message: '奖励积分需为大于等于 0 的整数' });
+      return;
+    }
+    awardPoints = parsedPoints;
+  }
+
   try {
     const plan = await approveDailyPlan({
       parentId: sessionUser.id,
-      planId
+      planId,
+      awardPoints
     });
     res.json({ plan });
   } catch (error) {

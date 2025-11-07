@@ -313,24 +313,53 @@ async function ensurePlanEntriesForPlan(connection, plan) {
   });
 
   for (const item of plan.items) {
-    const [[existing]] = await connection.query(
+    let existingEntry = null;
+
+    const [[entryByPlanItem]] = await connection.query(
       `
-        SELECT id, title, status
+        SELECT id, title, status, entry_date, plan_item_id
           FROM student_task_entries
-         WHERE student_id = ?
-           AND task_id = ?
-           AND entry_date = ?
-           AND (plan_item_id = ? OR plan_item_id IS NULL)
-         ORDER BY plan_item_id IS NULL DESC, created_at ASC
+         WHERE plan_item_id = ?
          LIMIT 1
       `,
-      [plan.studentId, item.taskId, plan.planDate, item.id]
+      [item.id]
     );
 
-    let entryId = existing?.id ?? null;
+    if (entryByPlanItem) {
+      existingEntry = entryByPlanItem;
+      if (entryByPlanItem.entry_date !== plan.planDate) {
+        await connection.query(
+          `
+            UPDATE student_task_entries
+               SET entry_date = ?
+             WHERE id = ?
+          `,
+          [plan.planDate, entryByPlanItem.id]
+        );
+      }
+    } else {
+      const [[entryWithoutPlan]] = await connection.query(
+        `
+          SELECT id, title, status, plan_item_id
+            FROM student_task_entries
+           WHERE student_id = ?
+             AND task_id = ?
+             AND entry_date = ?
+             AND plan_item_id IS NULL
+           ORDER BY created_at ASC
+           LIMIT 1
+        `,
+        [plan.studentId, item.taskId, plan.planDate]
+      );
+      if (entryWithoutPlan) {
+        existingEntry = entryWithoutPlan;
+      }
+    }
 
-    if (existing) {
-      if (existing.plan_item_id !== item.id) {
+    let entryId = existingEntry?.id ?? null;
+
+    if (existingEntry) {
+      if (existingEntry.plan_item_id !== item.id) {
         await connection.query(
           `
             UPDATE student_task_entries
@@ -340,19 +369,19 @@ async function ensurePlanEntriesForPlan(connection, plan) {
                    updated_at = CURRENT_TIMESTAMP
              WHERE id = ?
           `,
-          [item.id, item.title, existing.id]
+          [item.id, item.title, existingEntry.id]
         );
-      } else if (existing.status === 'pending' && existing.title !== item.title) {
+      } else if (existingEntry.status === 'pending' && existingEntry.title !== item.title) {
         await connection.query(
           `
             UPDATE student_task_entries
                SET title = ?, updated_at = CURRENT_TIMESTAMP
              WHERE id = ?
           `,
-          [item.title, existing.id]
+          [item.title, existingEntry.id]
         );
       }
-      entryId = existing.id;
+      entryId = existingEntry.id;
     } else {
       const [result] = await connection.query(
         `

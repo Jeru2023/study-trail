@@ -20,6 +20,8 @@ import {
   createQuickAdjustItem,
   updateQuickAdjustItem,
   deleteQuickAdjustItem,
+  fetchPlanRewardSetting,
+  updatePlanRewardSetting,
   fetchUnreadNotificationsCount,
   logout
 } from '../modules/apiClient.js';
@@ -43,6 +45,7 @@ import {
   setAssignments,
   getRewards,
   setRewards,
+  setPlanRewardPoints,
   getPointPresets,
   setPointPresets,
   getActivePointPresetTab,
@@ -82,7 +85,7 @@ import {
 } from './rewards.js';
 
 
-const VALID_VIEWS = ['students', 'tasks', 'assignments', 'rewards', 'point-presets'];
+const VALID_VIEWS = ['students', 'tasks', 'plan-reward', 'assignments', 'rewards', 'point-presets'];
 const DEFAULT_VIEW = 'students';
 const CONFIG_VIEWS = new Set(VALID_VIEWS);
 const ADMIN_VIEWS = new Set(['analytics', 'plan-approvals', 'approvals', 'notifications']);
@@ -98,6 +101,7 @@ const initialSidebarKey = (() => {
   const normalized = normalizeView(initialViewFromQuery);
   if (normalized === 'students') return 'config:students';
   if (normalized === 'tasks') return 'config:tasks';
+  if (normalized === 'plan-reward') return 'config:plan-reward';
   if (normalized === 'assignments') return 'config:assignments';
   if (normalized === 'rewards') return 'config:rewards';
   if (normalized === 'point-presets') return 'config:point-presets';
@@ -158,6 +162,12 @@ const TEXT = {
     stockInvalid: '库存需为不小于 0 的整数，或留空表示不限',
     confirmDelete: (title) => `确认删除奖励「${title}」吗？`
   },
+  planReward: {
+    loading: '正在加载计划奖励配置...',
+    saveInProgress: '正在保存默认奖励...',
+    saveSuccess: '默认奖励已更新',
+    pointsInvalid: '请输入大于等于 0 的整数'
+  },
   pointPreset: {
     modalCreateTitle: '新增模版',
     modalEditTitle: '编辑模版',
@@ -179,6 +189,7 @@ const elements = {
   navContainer: qs('.sidebar__nav'),
   navStudents: qs('#navStudents'),
   navTasks: qs('#navTasks'),
+  navPlanReward: qs('#navPlanReward'),
   navAssignments: qs('#navAssignments'),
   navRewards: qs('#navRewards'),
   navPointPresets: qs('#navPointPresets'),
@@ -241,6 +252,12 @@ const elements = {
     formMessage: qs('#rewardFormMessage'),
     cancelBtn: qs('#cancelRewardBtn'),
     closeBtn: qs('#closeRewardModal')
+  },
+  planReward: {
+    message: qs('#planRewardMessage'),
+    form: qs('#planRewardForm'),
+    formMessage: qs('#planRewardFormMessage'),
+    input: qs('#planRewardInput')
   },
   pointPreset: {
     message: qs('#pointPresetMessage'),
@@ -893,6 +910,77 @@ async function submitReward(event) {
   }
 }
 
+// ----- Plan reward helpers -----
+
+function updatePlanRewardInput(value) {
+  if (elements.planReward.input) {
+    elements.planReward.input.value = String(value);
+  }
+}
+
+function getNormalizedPlanRewardValue(value) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
+}
+
+async function loadPlanReward({ silent = false } = {}) {
+  try {
+    if (!silent && elements.planReward.message) {
+      setMessage(elements.planReward.message, TEXT.planReward.loading, 'info');
+    }
+    const { planRewardPoints } = await fetchPlanRewardSetting();
+    const normalized = getNormalizedPlanRewardValue(planRewardPoints);
+    setPlanRewardPoints(normalized);
+    updatePlanRewardInput(normalized);
+    if (!silent && elements.planReward.message) {
+      setMessage(elements.planReward.message, '', '');
+    }
+    if (elements.planReward.formMessage) {
+      setMessage(elements.planReward.formMessage, '', '');
+    }
+  } catch (error) {
+    if (elements.planReward.message) {
+      setMessage(elements.planReward.message, error.message, 'error');
+    }
+  }
+}
+
+async function submitPlanReward(event) {
+  event.preventDefault();
+  if (!elements.planReward.form) return;
+  const rawValue = elements.planReward.input?.value?.trim() ?? '';
+  const parsed = Number.parseInt(rawValue, 10);
+  if (Number.isNaN(parsed) || parsed < 0) {
+    if (elements.planReward.formMessage) {
+      setMessage(elements.planReward.formMessage, TEXT.planReward.pointsInvalid, 'error');
+    }
+    return;
+  }
+
+  try {
+    disableForm(elements.planReward.form, true);
+    if (elements.planReward.formMessage) {
+      setMessage(elements.planReward.formMessage, TEXT.planReward.saveInProgress, 'info');
+    }
+    const { planRewardPoints } = await updatePlanRewardSetting({ points: parsed });
+    const normalized = getNormalizedPlanRewardValue(planRewardPoints);
+    setPlanRewardPoints(normalized);
+    updatePlanRewardInput(normalized);
+    if (elements.planReward.formMessage) {
+      setMessage(elements.planReward.formMessage, TEXT.planReward.saveSuccess, 'success');
+    }
+    if (elements.planReward.message) {
+      setMessage(elements.planReward.message, '', '');
+    }
+  } catch (error) {
+    if (elements.planReward.formMessage) {
+      setMessage(elements.planReward.formMessage, error.message, 'error');
+    }
+  } finally {
+    disableForm(elements.planReward.form, false);
+  }
+}
+
 // ----- Point preset helpers -----
 
 function normalizePointPresetDirection(preset) {
@@ -1296,6 +1384,8 @@ async function renderCurrentView({ forceReload = false } = {}) {
       await loadStudents();
     } else if (normalized === 'tasks') {
       await loadTasks();
+    } else if (normalized === 'plan-reward') {
+      await loadPlanReward({ silent: true });
     } else if (normalized === 'assignments') {
       await ensureAssignmentDependencies();
       await loadAssignments();
@@ -1312,6 +1402,8 @@ async function renderCurrentView({ forceReload = false } = {}) {
     await loadStudents();
   } else if (normalized === 'tasks') {
     await loadTasks();
+  } else if (normalized === 'plan-reward') {
+    await loadPlanReward();
   } else if (normalized === 'assignments') {
     await ensureAssignmentDependencies();
     await loadAssignments();
@@ -1442,6 +1534,9 @@ function main() {
   }
   if (elements.reward.form) {
     elements.reward.form.addEventListener('submit', submitReward);
+  }
+  if (elements.planReward.form) {
+    elements.planReward.form.addEventListener('submit', submitPlanReward);
   }
   if (elements.addPointPresetBtn) {
     elements.addPointPresetBtn.addEventListener('click', () => openPointPresetModal('create'));

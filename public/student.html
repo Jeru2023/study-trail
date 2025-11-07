@@ -14,7 +14,16 @@
         <header class="student-header">
           <div>
             <h1 id="studentHeaderTitle">每日计划</h1>
-            <p class="student-header__hint" id="studentDateHeading">--</p>
+            <p class="student-header__hint">
+              <span id="studentDateHeading">--</span>
+              <input
+                type="date"
+                id="studentDatePicker"
+                class="student-header__date-picker"
+                aria-label="选择日期"
+                hidden
+              />
+            </p>
           </div>
           <div class="student-header__actions">
             <button type="button" class="icon-button icon-button--badge" id="studentNotificationsButton" aria-label="消息中心">

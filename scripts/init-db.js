@@ -185,6 +185,7 @@ async function run() {
         task_entry_id BIGINT UNSIGNED NULL,
         task_id BIGINT UNSIGNED NULL,
         reward_id BIGINT UNSIGNED NULL,
+        plan_id BIGINT UNSIGNED NULL,
         points INT NOT NULL,
         source VARCHAR(50) NOT NULL DEFAULT 'task',
         quantity INT UNSIGNED NULL,
@@ -196,6 +197,7 @@ async function run() {
         KEY idx_points_parent (parent_id),
         KEY idx_points_source (source),
         KEY idx_points_reward (reward_id),
+        KEY idx_points_plan (plan_id),
         CONSTRAINT fk_points_parent FOREIGN KEY (parent_id) REFERENCES users (id) ON DELETE CASCADE,
         CONSTRAINT fk_points_student FOREIGN KEY (student_id) REFERENCES users (id) ON DELETE CASCADE,
         CONSTRAINT fk_points_task_entry FOREIGN KEY (task_entry_id) REFERENCES student_task_entries (id) ON DELETE CASCADE,
@@ -203,6 +205,34 @@ async function run() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
   } catch (error) {
     throw error;
+  }
+
+  try {
+    await pool.query(
+      'ALTER TABLE daily_plans ADD COLUMN approval_points INT UNSIGNED NOT NULL DEFAULT 0 AFTER required_subtasks'
+    );
+  } catch (error) {
+    if (error.code !== 'ER_DUP_FIELDNAME' && error.code !== 'ER_NO_SUCH_TABLE') {
+      throw error;
+    }
+  }
+
+  try {
+    await pool.query(
+      'ALTER TABLE student_points_history ADD COLUMN plan_id BIGINT UNSIGNED NULL AFTER reward_id'
+    );
+  } catch (error) {
+    if (error.code !== 'ER_DUP_FIELDNAME') {
+      throw error;
+    }
+  }
+
+  try {
+    await pool.query('ALTER TABLE student_points_history ADD KEY idx_points_plan (plan_id)');
+  } catch (error) {
+    if (error.code !== 'ER_DUP_KEYNAME') {
+      throw error;
+    }
   }
 
   try {

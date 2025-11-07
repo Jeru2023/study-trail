@@ -3,7 +3,8 @@ import { pool } from '../db/pool.js';
 const LEDGER_SOURCES = {
   TASK: 'task',
   MANUAL: 'manual',
-  REWARD: 'reward_redeem'
+  REWARD: 'reward_redeem',
+  PLAN: 'plan'
 };
 
 function mapStudentSummary(row, aggregates = {}) {
@@ -34,13 +35,15 @@ function mapLedgerRow(row) {
     taskEntryId: row.task_entry_id,
     taskId: row.task_id,
     rewardId: row.reward_id,
+    planId: row.plan_id,
     points: Number(row.points),
     source: row.source,
     quantity: row.quantity === null ? null : Number(row.quantity),
     note: row.note,
     createdAt: row.created_at,
     taskTitle: row.task_title ?? null,
-    rewardTitle: row.reward_title ?? null
+    rewardTitle: row.reward_title ?? null,
+    planDate: row.plan_date ?? null
   };
 }
 
@@ -177,10 +180,12 @@ export async function listStudentLedgerEntries({
     `
       SELECT sph.*,
              t.title AS task_title,
-             r.title AS reward_title
+             r.title AS reward_title,
+             dp.plan_date
         FROM student_points_history sph
         LEFT JOIN tasks t ON sph.task_id = t.id
         LEFT JOIN reward_items r ON sph.reward_id = r.id
+        LEFT JOIN daily_plans dp ON sph.plan_id = dp.id
        WHERE ${conditions.join(`
          AND `)}
        ORDER BY sph.created_at ${sortDirection}, sph.id ${sortDirection}
@@ -196,8 +201,8 @@ async function insertLedgerEntry(connection, entry) {
   const [result] = await connection.query(
     `
       INSERT INTO student_points_history
-        (parent_id, student_id, task_entry_id, task_id, reward_id, points, source, quantity, note)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (parent_id, student_id, task_entry_id, task_id, reward_id, plan_id, points, source, quantity, note)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       entry.parentId,
@@ -205,6 +210,7 @@ async function insertLedgerEntry(connection, entry) {
       entry.taskEntryId ?? null,
       entry.taskId ?? null,
       entry.rewardId ?? null,
+      entry.planId ?? null,
       entry.points,
       entry.source,
       entry.quantity ?? null,
@@ -216,10 +222,12 @@ async function insertLedgerEntry(connection, entry) {
     `
       SELECT sph.*,
              t.title AS task_title,
-             r.title AS reward_title
+             r.title AS reward_title,
+             dp.plan_date
         FROM student_points_history sph
         LEFT JOIN tasks t ON sph.task_id = t.id
         LEFT JOIN reward_items r ON sph.reward_id = r.id
+        LEFT JOIN daily_plans dp ON sph.plan_id = dp.id
        WHERE sph.id = ?
          AND sph.parent_id = ?
        LIMIT 1
@@ -230,15 +238,21 @@ async function insertLedgerEntry(connection, entry) {
   return mapLedgerRow(row);
 }
 
-export async function adjustStudentPoints({ parentId, studentId, delta, note }) {
+export async function adjustStudentPoints(
+  { parentId, studentId, delta, note, planId = null },
+  { connection: externalConnection = null } = {}
+) {
   if (!Number.isInteger(delta) || delta === 0) {
     throw new Error('INVALID_DELTA');
   }
 
-  const connection = await pool.getConnection();
+  const managedConnection = !externalConnection;
+  const connection = externalConnection ?? (await pool.getConnection());
 
   try {
-    await connection.beginTransaction();
+    if (managedConnection) {
+      await connection.beginTransaction();
+    }
 
     const student = await fetchStudentForParent(connection, parentId, studentId, { lock: true });
 
@@ -247,13 +261,15 @@ export async function adjustStudentPoints({ parentId, studentId, delta, note }) 
       throw new Error('INSUFFICIENT_POINTS');
     }
 
-    const ledgerEntry = await insertLedgerEntry(connection, {
+    const entryPayload = {
       parentId,
       studentId,
+      planId,
       points: delta,
-      source: LEDGER_SOURCES.MANUAL,
+      source: planId ? LEDGER_SOURCES.PLAN : LEDGER_SOURCES.MANUAL,
       note: note?.trim() || null
-    });
+    };
+    const ledgerEntry = await insertLedgerEntry(connection, entryPayload);
 
     await connection.query(
       `
@@ -265,7 +281,9 @@ export async function adjustStudentPoints({ parentId, studentId, delta, note }) 
       [delta, studentId]
     );
 
-    await connection.commit();
+    if (managedConnection) {
+      await connection.commit();
+    }
 
     return {
       student: {
@@ -275,10 +293,14 @@ export async function adjustStudentPoints({ parentId, studentId, delta, note }) 
       entry: ledgerEntry
     };
   } catch (error) {
-    await connection.rollback();
+    if (managedConnection) {
+      await connection.rollback();
+    }
     throw error;
   } finally {
-    connection.release();
+    if (managedConnection) {
+      connection.release();
+    }
   }
 }
 
@@ -393,6 +415,10 @@ export function isLedgerSourceManual(source) {
 
 export function isLedgerSourceReward(source) {
   return source === LEDGER_SOURCES.REWARD;
+}
+
+export function isLedgerSourcePlan(source) {
+  return source === LEDGER_SOURCES.PLAN;
 }
 
 export async function listPointPresets(parentId) {

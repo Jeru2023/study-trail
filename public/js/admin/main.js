@@ -1254,12 +1254,14 @@ function handlePlanApprovalTabClick(event) {
   loadPlanApprovals({ silent: false });
 }
 
-async function handleApprovePlan(planId) {
+async function handleApprovePlan(planId, awardPoints = 0) {
   if (!window.confirm(TEXT.planApproval.approveConfirm)) {
     return;
   }
   try {
-    await approveParentPlan(planId);
+    const sanitizedPoints = Number.isInteger(awardPoints) && awardPoints > 0 ? awardPoints : 0;
+    const payload = sanitizedPoints > 0 ? { points: sanitizedPoints } : undefined;
+    await approveParentPlan(planId, payload);
     await loadPlanApprovals({ silent: true });
     if (elements.planApproval.message) {
       setMessage(elements.planApproval.message, TEXT.planApproval.approveSuccess, 'success');

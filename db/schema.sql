@@ -198,6 +198,15 @@ CREATE TABLE IF NOT EXISTS point_presets (
   CONSTRAINT fk_point_presets_parent FOREIGN KEY (parent_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS parent_settings (
+  parent_id BIGINT UNSIGNED NOT NULL,
+  plan_reward_points INT UNSIGNED NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (parent_id),
+  CONSTRAINT fk_parent_settings_parent FOREIGN KEY (parent_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS student_points_history (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   parent_id BIGINT UNSIGNED NOT NULL,
@@ -205,6 +214,7 @@ CREATE TABLE IF NOT EXISTS student_points_history (
   task_entry_id BIGINT UNSIGNED NULL,
   task_id BIGINT UNSIGNED NULL,
   reward_id BIGINT UNSIGNED NULL,
+  plan_id BIGINT UNSIGNED NULL,
   points INT NOT NULL,
   source VARCHAR(50) NOT NULL DEFAULT 'task',
   quantity INT UNSIGNED NULL,
@@ -216,10 +226,12 @@ CREATE TABLE IF NOT EXISTS student_points_history (
   KEY idx_points_parent (parent_id),
   KEY idx_points_source (source),
   KEY idx_points_reward (reward_id),
+  KEY idx_points_plan (plan_id),
   CONSTRAINT fk_points_parent FOREIGN KEY (parent_id) REFERENCES users (id) ON DELETE CASCADE,
   CONSTRAINT fk_points_student FOREIGN KEY (student_id) REFERENCES users (id) ON DELETE CASCADE,
   CONSTRAINT fk_points_task_entry FOREIGN KEY (task_entry_id) REFERENCES student_task_entries (id) ON DELETE CASCADE,
-  CONSTRAINT fk_points_task FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE
+  CONSTRAINT fk_points_task FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE,
+  CONSTRAINT fk_points_reward FOREIGN KEY (reward_id) REFERENCES reward_items (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ALTER TABLE student_points_history

@@ -280,7 +280,7 @@ export function createTaskController(state, elements, showPageMessage) {
     if (!task.subtasks.length) {
       const empty = document.createElement('p');
       empty.className = 'subtask-empty';
-      empty.textContent = '今日计划中暂无该任务的子任务，请先查看每日计划。';
+      empty.textContent = '今日计划中暂无该任务的子任务，请提交计划后等待家长审批。';
       card.appendChild(empty);
     } else {
       const list = document.createElement('ul');

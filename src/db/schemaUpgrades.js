@@ -160,6 +160,12 @@ async function applyDailyPlanTables() {
     );
   }
 
+  if (!(await columnExists('daily_plans', 'approval_points'))) {
+    await pool.query(
+      'ALTER TABLE daily_plans ADD COLUMN approval_points INT UNSIGNED NOT NULL DEFAULT 0 AFTER required_subtasks'
+    );
+  }
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS daily_plans (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -168,6 +174,7 @@ async function applyDailyPlanTables() {
       plan_date DATE NOT NULL,
       status ENUM('draft','submitted','approved','rejected') NOT NULL DEFAULT 'draft',
       required_subtasks INT UNSIGNED NOT NULL DEFAULT 0,
+      approval_points INT UNSIGNED NOT NULL DEFAULT 0,
       submitted_at DATETIME NULL,
       approved_at DATETIME NULL,
       approved_by BIGINT UNSIGNED NULL,
@@ -261,6 +268,43 @@ async function applyStudentTaskEntryPlanItemColumn() {
   }
 }
 
+async function applyPlanLedgerColumns() {
+  if (!(await columnExists('student_points_history', 'plan_id'))) {
+    await pool.query(
+      'ALTER TABLE student_points_history ADD COLUMN plan_id BIGINT UNSIGNED NULL AFTER reward_id'
+    );
+  }
+
+  if (!(await indexExists('student_points_history', 'idx_points_plan'))) {
+    await pool.query('ALTER TABLE student_points_history ADD KEY idx_points_plan (plan_id)');
+  }
+
+  if (!(await constraintExists('student_points_history', 'fk_points_plan'))) {
+    try {
+      await pool.query(
+        'ALTER TABLE student_points_history ADD CONSTRAINT fk_points_plan FOREIGN KEY (plan_id) REFERENCES daily_plans (id) ON DELETE SET NULL'
+      );
+    } catch (error) {
+      if (error.code !== 'ER_CANT_CREATE_TABLE' && error.code !== 'ER_DUP_KEY' && error.code !== 'ER_ROW_IS_REFERENCED_2') {
+        throw error;
+      }
+    }
+  }
+}
+
+async function applyParentSettingsTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS parent_settings (
+      parent_id BIGINT UNSIGNED NOT NULL,
+      plan_reward_points INT UNSIGNED NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (parent_id),
+      CONSTRAINT fk_parent_settings_parent FOREIGN KEY (parent_id) REFERENCES users (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+}
+
 export function ensureTaskSchedulingArtifacts() {
   if (!ensureSchedulingPromise) {
     ensureSchedulingPromise = (async () => {
@@ -269,6 +313,8 @@ export function ensureTaskSchedulingArtifacts() {
       await applyDailyPlanTables();
       await applyStudentTaskEntryPlanItemColumn();
       await applyNotificationsTable();
+      await applyPlanLedgerColumns();
+      await applyParentSettingsTable();
     })().catch((error) => {
       ensureSchedulingPromise = null;
       throw error;

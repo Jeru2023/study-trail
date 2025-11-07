@@ -1,5 +1,7 @@
 import { pool } from '../db/pool.js';
 import { ensureTaskSchedulingArtifacts } from '../db/schemaUpgrades.js';
+import { adjustStudentPoints } from './pointService.js';
+import { getPlanRewardPoints } from './parentSettingsService.js';
 
 export const PLAN_STATUS = {
   DRAFT: 'draft',
@@ -45,6 +47,14 @@ function normalizePlanDate(value) {
   return formatDate(baseDate);
 }
 
+function normalizePlanRewardPoints(value) {
+  const parsed = Number.parseInt(String(value ?? '').trim(), 10);
+  if (Number.isNaN(parsed) || parsed < 0) {
+    return 0;
+  }
+  return parsed;
+}
+
 function mapPlanRow(row, extras = {}) {
   if (!row) return null;
   return {
@@ -54,6 +64,7 @@ function mapPlanRow(row, extras = {}) {
     planDate: row.plan_date,
     status: row.status,
     requiredSubtasks: row.required_subtasks ?? 0,
+    approvalPoints: Number.parseInt(row.approval_points ?? 0, 10) || 0,
     submittedAt: row.submitted_at,
     approvedAt: row.approved_at,
     approvedBy: row.approved_by,
@@ -152,7 +163,7 @@ function validateAndNormalizeItems(items) {
   });
 }
 
-async function loadPlanWithItems(connection, planRow) {
+async function loadPlanWithItems(connection, planRow, { planRewardPoints } = {}) {
   if (!planRow) return null;
 
   const [items] = await connection.query(
@@ -166,9 +177,15 @@ async function loadPlanWithItems(connection, planRow) {
     [planRow.id]
   );
 
+  const planItems = items.map(mapPlanItemRow);
+  const rewardPoints =
+    planRewardPoints === undefined || planRewardPoints === null
+      ? await getPlanRewardPoints(planRow.parent_id, { connection })
+      : normalizePlanRewardPoints(planRewardPoints);
+
   return {
-    ...mapPlanRow(planRow),
-    items: items.map(mapPlanItemRow)
+    ...mapPlanRow(planRow, { defaultAwardPoints: rewardPoints }),
+    items: planItems
   };
 }
 
@@ -200,48 +217,12 @@ async function loadPlanForStudent(connection, studentId, planDate) {
     `,
     [studentId, planDate]
   );
-  if (planRow) {
-    return loadPlanWithItems(connection, planRow);
-  }
 
-  const [[legacyRow]] = await connection.query(
-    `
-      SELECT *
-        FROM daily_plans
-       WHERE student_id = ?
-         AND plan_date BETWEEN DATE_SUB(?, INTERVAL 3 DAY) AND DATE_ADD(?, INTERVAL 3 DAY)
-       ORDER BY plan_date DESC
-       LIMIT 1
-    `,
-    [studentId, planDate, planDate]
-  );
-
-  if (!legacyRow) {
+  if (!planRow) {
     return null;
   }
 
-  const requestedDate = parseDateString(planDate);
-  const legacyDate = parseDateString(legacyRow.plan_date);
-  if (!requestedDate || !legacyDate) {
-    return loadPlanWithItems(connection, legacyRow);
-  }
-
-  const diffDays = Math.abs(requestedDate - legacyDate) / (1000 * 60 * 60 * 24);
-  if (diffDays > 2) {
-    return loadPlanWithItems(connection, legacyRow);
-  }
-
-  await connection.query(
-    `
-      UPDATE daily_plans
-         SET plan_date = ?,
-             updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?
-    `,
-    [planDate, legacyRow.id]
-  );
-
-  return loadPlanById(connection, legacyRow.id);
+  return loadPlanWithItems(connection, planRow);
 }
 
 export async function getStudentDailyPlan(studentId, planDateInput) {
@@ -478,6 +459,8 @@ export async function listParentDailyPlans({ parentId, status }) {
       return [];
     }
 
+    const planRewardPoints = await getPlanRewardPoints(parentId, { connection });
+
     const planIds = rows.map((row) => row.id);
     const [items] = await connection.query(
       `
@@ -499,12 +482,14 @@ export async function listParentDailyPlans({ parentId, status }) {
       groupedItems.get(item.plan_id).push(entry);
     });
 
-    return rows.map((row) =>
-      mapPlanRow(row, {
+    return rows.map((row) => {
+      const itemsForPlan = groupedItems.get(row.id) || [];
+      return mapPlanRow(row, {
         studentName: row.student_name || null,
-        items: groupedItems.get(row.id) || []
-      })
-    );
+        items: itemsForPlan,
+        defaultAwardPoints: normalizePlanRewardPoints(planRewardPoints)
+      });
+    });
   } finally {
     connection.release();
   }
@@ -529,7 +514,8 @@ export async function getParentDailyPlan({ parentId, planId }) {
       throw new Error('PLAN_NOT_FOUND');
     }
 
-    const plan = await loadPlanWithItems(connection, planRow);
+    const planRewardPoints = await getPlanRewardPoints(parentId, { connection });
+    const plan = await loadPlanWithItems(connection, planRow, { planRewardPoints });
     if (plan) {
       plan.studentName = planRow.student_name || null;
       plan.requiredSubtasks = plan.requiredSubtasks ?? 0;
@@ -540,7 +526,7 @@ export async function getParentDailyPlan({ parentId, planId }) {
   }
 }
 
-export async function approveDailyPlan({ parentId, planId }) {
+export async function approveDailyPlan({ parentId, planId, awardPoints = null }) {
   await ensureTaskSchedulingArtifacts();
   const connection = await pool.getConnection();
   try {
@@ -566,6 +552,20 @@ export async function approveDailyPlan({ parentId, planId }) {
       throw new Error('PLAN_NOT_SUBMITTED');
     }
 
+    const planRewardPoints = await getPlanRewardPoints(parentId, { connection });
+    const planWithItems = await loadPlanWithItems(connection, planRow, { planRewardPoints });
+    if (!planWithItems) {
+      throw new Error('PLAN_NOT_FOUND');
+    }
+    const recommendedPoints = normalizePlanRewardPoints(planRewardPoints);
+
+    const existingAward = Number.parseInt(planRow.approval_points ?? 0, 10);
+    let effectiveAward = awardPoints;
+    if (effectiveAward === undefined || effectiveAward === null) {
+      effectiveAward = existingAward > 0 ? existingAward : recommendedPoints;
+    }
+    const normalizedAward = Math.max(0, Number.parseInt(effectiveAward, 10) || 0);
+
     await connection.query(
       `
         UPDATE daily_plans
@@ -575,11 +575,26 @@ export async function approveDailyPlan({ parentId, planId }) {
                rejected_at = NULL,
                rejected_by = NULL,
                rejection_reason = NULL,
+               approval_points = ?,
                updated_at = CURRENT_TIMESTAMP
          WHERE id = ?
       `,
-      [PLAN_STATUS.APPROVED, parentId, planRow.id]
+      [PLAN_STATUS.APPROVED, parentId, normalizedAward, planRow.id]
     );
+
+    if (normalizedAward > 0) {
+      const planNote = `每日计划奖励（${planRow.plan_date}）`.slice(0, 200);
+      await adjustStudentPoints(
+        {
+          parentId,
+          studentId: planRow.student_id,
+          delta: normalizedAward,
+          note: planNote,
+          planId: planRow.id
+        },
+        { connection }
+      );
+    }
 
     const plan = await loadPlanById(connection, planRow.id);
     await connection.commit();

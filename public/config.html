@@ -55,6 +55,40 @@
             </p>
           </section>
 
+          <section class="view" data-view="plan-reward" hidden>
+            <div class="page-header">
+              <div>
+                <h1>计划奖励</h1>
+                <p class="page-subtitle">配置每日计划审批通过时的默认奖励积分。</p>
+              </div>
+            </div>
+            <p class="page-message" id="planRewardMessage"></p>
+            <section class="card">
+              <header class="card__header">
+                <h2>默认奖励分值</h2>
+              </header>
+              <form id="planRewardForm" class="plan-reward-form">
+                <label class="form-field">
+                  <span class="form-label">默认奖励积分</span>
+                  <input
+                    type="number"
+                    name="planRewardPoints"
+                    id="planRewardInput"
+                    min="0"
+                    step="1"
+                    required
+                    placeholder="例如：5"
+                  />
+                  <p class="form-hint">学生的每日计划通过审批后，将默认发放该积分，可在审批时微调。</p>
+                </label>
+                <p class="form-message" id="planRewardFormMessage"></p>
+                <div class="form-actions plan-reward-form__actions">
+                  <button type="submit" class="primary-button">保存</button>
+                </div>
+              </form>
+            </section>
+          </section>
+
           <section class="view" data-view="assignments" hidden>
             <div class="page-header">
               <div>

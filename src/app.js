@@ -16,6 +16,11 @@ import rewardRoutes from './routes/rewardRoutes.js';
 import pointRoutes from './routes/pointRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import parentSettingsRoutes from './routes/parentSettingsRoutes.js';
+import {
+  getPlanRewardSetting,
+  updatePlanRewardSetting
+} from './controllers/parentSettingsController.js';
 import { healthCheck } from './db/pool.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -74,6 +79,13 @@ app.use('/api/student/plans', studentPlanRoutes);
 app.use('/api/student', studentDailyTaskRoutes);
 app.use('/api/approvals', parentApprovalRoutes);
 app.use('/api/parent/plans', parentPlanRoutes);
+app.use('/api/parent/settings', parentSettingsRoutes);
+app.get('/api/parent/settings/plan-reward', getPlanRewardSetting);
+app.put('/api/parent/settings/plan-reward', updatePlanRewardSetting);
+app.post('/api/parent/settings/plan-reward', updatePlanRewardSetting);
+app.get('/api/parent/settings', getPlanRewardSetting);
+app.put('/api/parent/settings', updatePlanRewardSetting);
+app.post('/api/parent/settings', updatePlanRewardSetting);
 app.use('/api/rewards', rewardRoutes);
 app.use('/api/points', pointRoutes);
 app.use('/api/analytics', analyticsRoutes);

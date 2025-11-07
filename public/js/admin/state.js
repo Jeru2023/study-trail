@@ -11,6 +11,7 @@ const state = {
   students: [],
   assignments: [],
   rewards: [],
+  planRewardPoints: 0,
   pointsStudents: [],
   pointsHistory: [],
   activePointsStudentId: null,
@@ -82,6 +83,17 @@ export function setRewards(rewards) {
 
 export function getRewards() {
   return state.rewards;
+}
+
+export function setPlanRewardPoints(points) {
+  const parsed = Number.parseInt(points, 10);
+  state.planRewardPoints = Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
+}
+
+export function getPlanRewardPoints() {
+  return Number.isInteger(state.planRewardPoints) && state.planRewardPoints >= 0
+    ? state.planRewardPoints
+    : 0;
 }
 
 export function setPointsStudents(students) {

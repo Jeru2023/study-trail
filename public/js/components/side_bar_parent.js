@@ -85,6 +85,14 @@ export function renderParentSidebar(root, options = {}) {
           </button>
           <button
             class="nav-item"
+            data-view="plan-reward"
+            data-nav-key="config:plan-reward"
+            id="navPlanReward"
+          >
+            <span>计划奖励</span>
+          </button>
+          <button
+            class="nav-item"
             data-link="/config-schedules.html"
             data-nav-key="config:schedules"
             id="navSchedules"

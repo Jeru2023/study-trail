@@ -1231,6 +1231,30 @@ button {
   font-size: 0.95rem;
 }
 
+.plan-approval-card__reward {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.05);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+}
+
+.plan-approval-card__reward-input {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.plan-approval-card__reward-input input {
+  width: 140px;
+}
+
+.plan-approval-card__reward-hint {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
 .plan-approval-card__actions {
   display: flex;
   justify-content: flex-end;
@@ -1621,6 +1645,19 @@ button {
 .points-form .form-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.plan-reward-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.plan-reward-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
 }
 
 .points-history {

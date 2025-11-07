@@ -55,6 +55,7 @@ const state = {
 const elements = {
   greeting: qs('#studentGreeting'),
   dateText: qs('#studentDateHeading'),
+  datePicker: qs('#studentDatePicker'),
   headerTitle: qs('#studentHeaderTitle'),
   logoutBtn: qs('#logoutStudentBtn'),
   navPlan: qs('#studentNavPlan'),
@@ -301,8 +302,17 @@ function updateHeaderTitle(view) {
 }
 
 function updateDateHeader() {
-  if (!elements.dateText) return;
-  elements.dateText.textContent = formatDateLabel(state.date);
+  if (elements.dateText) {
+    elements.dateText.textContent = formatDateLabel(state.date);
+  }
+  if (elements.datePicker && elements.datePicker.value !== state.date) {
+    elements.datePicker.value = state.date;
+  }
+}
+
+async function refreshActiveDate({ silentPlan = false } = {}) {
+  await planController.loadPlan({ silent: silentPlan });
+  await taskController.loadTasks();
 }
 
 async function changeView(view) {
@@ -320,6 +330,28 @@ async function changeView(view) {
 }
 
 function registerEvents() {
+  if (elements.datePicker) {
+    elements.datePicker.addEventListener('change', async (event) => {
+      const rawValue = event.target.value;
+      const parsed = parseDateString(rawValue);
+      if (!parsed) {
+        event.target.value = state.date;
+        return;
+      }
+      const normalized = toDateString(parsed);
+      if (normalized === state.date) {
+        event.target.value = normalized;
+        return;
+      }
+      state.date = normalized;
+      updateDateHeader();
+      try {
+        await refreshActiveDate();
+      } catch (error) {
+        showPageMessage(error.message || '无法加载所选日期的数据', 'error');
+      }
+    });
+  }
   if (elements.navPlan) {
     elements.navPlan.addEventListener('click', (event) => {
       event.preventDefault();
@@ -402,6 +434,7 @@ async function ensureStudentSession() {
 }
 
 async function bootstrap() {
+  updateDateHeader();
   registerEvents();
   if (!(await ensureStudentSession())) {
     return;
@@ -410,8 +443,7 @@ async function bootstrap() {
   updateDateHeader();
   updateHeaderTitle(getActiveView());
   showView(getActiveView());
-  await planController.loadPlan();
-  await taskController.loadTasks();
+  await refreshActiveDate();
   await storeController.loadStore({ silent: true });
 }
 

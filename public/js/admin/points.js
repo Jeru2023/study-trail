@@ -19,6 +19,8 @@ function formatSourceLabel(source) {
       return '手动调整';
     case 'reward_redeem':
       return '奖励兑换';
+    case 'plan_approval':
+      return '计划奖励';
     default:
       return '其他';
   }
@@ -94,6 +96,9 @@ export function renderPointsHistory(listElement, entries) {
       }
       if (entry.source === 'reward_redeem' && entry.rewardTitle) {
         extraMeta.push(`兑换奖励：${entry.rewardTitle}`);
+      }
+      if (entry.source === 'plan_approval' && entry.planDate) {
+        extraMeta.push(`计划日期：${entry.planDate}`);
       }
       if (entry.quantity) {
         extraMeta.push(`数量：${entry.quantity}`);

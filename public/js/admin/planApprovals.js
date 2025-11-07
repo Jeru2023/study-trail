@@ -6,7 +6,10 @@ const TEXT = {
     rejected: '已驳回'
   },
   approve: '通过',
-  reject: '驳回'
+  reject: '驳回',
+  rewardLabel: '奖励积分',
+  rewardHint: '可在此调整审批后发放的积分',
+  rewardRecommended: (points) => `推荐：${points} 分`
 };
 
 function escapeHtml(value) {
@@ -92,9 +95,20 @@ function renderPlan(plan, { onApprove, onReject }) {
   const rejectionSection = plan.rejectionReason
     ? `<p class="plan-approval-card__rejection">家长驳回理由：${escapeHtml(plan.rejectionReason)}</p>`
     : '';
+  const recommendedPoints = Math.max(
+    0,
+    Number.isFinite(Number(plan.defaultAwardPoints)) ? Number(plan.defaultAwardPoints) : 0
+  );
+  const savedAward = Math.max(
+    0,
+    Number.isFinite(Number(plan.approvalPoints)) ? Number(plan.approvalPoints) : 0
+  );
+  const initialAward = savedAward > 0 ? savedAward : recommendedPoints;
+  const rewardHint =
+    recommendedPoints > 0 ? TEXT.rewardRecommended(recommendedPoints) : TEXT.rewardHint;
 
   return `
-    <article class="plan-approval-card" data-plan-id="${plan.id}">
+    <article class="plan-approval-card" data-plan-id="${plan.id}" data-default-award="${recommendedPoints}">
       <header class="plan-approval-card__header">
         <div>
           <h3 class="plan-approval-card__title">${escapeHtml(plan.studentName || '学生')}</h3>
@@ -110,6 +124,22 @@ function renderPlan(plan, { onApprove, onReject }) {
           ${renderItems(plan.items)}
         </ul>
         ${rejectionSection}
+      </section>
+      <section class="plan-approval-card__reward">
+        <label class="form-field">
+          <span class="form-label">${TEXT.rewardLabel}</span>
+          <div class="plan-approval-card__reward-input">
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value="${initialAward}"
+              data-plan-award
+              ${status !== 'submitted' ? 'disabled' : ''}
+            />
+            <span class="plan-approval-card__reward-hint">${escapeHtml(rewardHint)}</span>
+          </div>
+        </label>
       </section>
       <footer class="plan-approval-card__actions">
         <button type="button" class="ghost-button" data-action="reject" ${rejectDisabled}>${
@@ -144,9 +174,14 @@ export function renderPlanApprovalList(container, plans, options = {}) {
   container.querySelectorAll('[data-action="approve"]').forEach((button) => {
     button.addEventListener('click', () => {
       const planId = Number.parseInt(button.closest('.plan-approval-card')?.dataset?.planId || '', 10);
-      if (Number.isFinite(planId) && onApprove) {
-        onApprove(planId);
+      if (!Number.isFinite(planId) || !onApprove) {
+        return;
       }
+      const card = button.closest('.plan-approval-card');
+      const awardInput = card?.querySelector('[data-plan-award]');
+      const awardValue = Number.parseInt(awardInput?.value ?? '', 10);
+      const points = Number.isInteger(awardValue) && awardValue > 0 ? awardValue : 0;
+      onApprove(planId, points);
     });
   });
 

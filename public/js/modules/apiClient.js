@@ -132,8 +132,12 @@ export function fetchParentPlans({ status } = {}) {
   return request(`/api/parent/plans${query ? `?${query}` : ''}`);
 }
 
-export function approveParentPlan(planId) {
-  return request(`/api/parent/plans/${planId}/approve`, { method: 'POST' });
+export function approveParentPlan(planId, payload) {
+  const options = { method: 'POST' };
+  if (payload && Object.keys(payload).length > 0) {
+    options.data = payload;
+  }
+  return request(`/api/parent/plans/${planId}/approve`, options);
 }
 
 export function rejectParentPlan(planId, payload) {
@@ -220,6 +224,14 @@ export function updateReward(rewardId, payload) {
 
 export function deleteReward(rewardId) {
   return request(`/api/rewards/${rewardId}`, { method: 'DELETE' });
+}
+
+export function fetchPlanRewardSetting() {
+  return request('/api/parent/settings/plan-reward');
+}
+
+export function updatePlanRewardSetting(payload) {
+  return request('/api/parent/settings/plan-reward', { method: 'PUT', data: payload });
 }
 
 export function fetchPointStudents() {
