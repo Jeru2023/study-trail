@@ -218,6 +218,10 @@ function mapEntryRow(row, files = [], meta = {}) {
   };
 }
 
+function buildInClause(values) {
+  return values.map(() => '?').join(', ');
+}
+
 async function fetchEntries(studentId, entryDate, taskIds) {
   if (!taskIds.length) {
     return { entries: [], files: [] };
@@ -654,13 +658,13 @@ export async function createSubtaskEntry({ studentId, taskId, entryDate, title, 
     entryDate: dateString
   };
   const existingPlan = await fetchDailyPlan(pool, planParams);
-  const planItemId = existingPlan?.plan_item_id ?? null;
+  const planItemIds = existingPlan?.plan_item_ids ?? [];
   if (existingPlan?.is_locked) {
     const requiredTotal = Number(existingPlan.required_subtasks ?? 0);
     if (requiredTotal > 0) {
       const currentTotal = await countDailySubtasks(pool, {
         ...planParams,
-        planItemId
+        planItemIds
       });
       if (currentTotal >= requiredTotal) {
         throw new Error('DAY_PLAN_LOCKED');
@@ -680,7 +684,7 @@ export async function createSubtaskEntry({ studentId, taskId, entryDate, title, 
   if (existingPlan?.is_locked) {
     await syncDailyPlan(pool, {
       ...planParams,
-      planItemId
+      planItemIds
     });
   }
 
@@ -746,7 +750,7 @@ export async function countProofsForEntry(entryId, connection = pool) {
 }
 
 async function fetchDailyPlan(client, { parentId, studentId, taskId, entryDate }) {
-  const [[row]] = await client.query(
+  const [rows] = await client.query(
     `
       SELECT dp.id AS plan_id,
              dp.parent_id,
@@ -763,33 +767,53 @@ async function fetchDailyPlan(client, { parentId, studentId, taskId, entryDate }
        WHERE dp.parent_id = ?
          AND dp.student_id = ?
          AND dp.plan_date = ?
-       LIMIT 1
     `,
     [taskId, parentId, studentId, entryDate]
   );
 
-  if (!row || !row.plan_item_id) {
+  const planRows = rows.filter((row) => row.plan_id);
+  if (!planRows.length) {
     return null;
   }
 
-  const required = Number(row.item_required_subtasks ?? 1);
+  const planItemIds = planRows.filter((row) => row.plan_item_id).map((row) => row.plan_item_id);
+  if (!planItemIds.length) {
+    return null;
+  }
+
+  const required = planRows.reduce((sum, row) => {
+    const value = Number(row.item_required_subtasks ?? 0);
+    if (Number.isFinite(value) && value > 0) {
+      return sum + value;
+    }
+    return sum + 1;
+  }, 0);
+
+  const baseRow = planRows[0];
   return {
-    id: row.plan_id,
-    parent_id: row.parent_id,
-    student_id: row.student_id,
+    id: baseRow.plan_id,
+    parent_id: baseRow.parent_id,
+    student_id: baseRow.student_id,
     task_id: taskId,
-    entry_date: row.plan_date,
-    required_subtasks: required > 0 ? required : 1,
-    is_locked: row.status === PLAN_STATUS_APPROVED,
-    locked_at: row.approved_at,
-    plan_item_id: row.plan_item_id
+    entry_date: baseRow.plan_date,
+    required_subtasks: required > 0 ? required : planItemIds.length,
+    is_locked: baseRow.status === PLAN_STATUS_APPROVED,
+    locked_at: baseRow.approved_at,
+    plan_item_ids: planItemIds
   };
 }
 
 async function countDailySubtasks(
   client,
-  { parentId, studentId, taskId, entryDate, planItemId = null }
+  { parentId, studentId, taskId, entryDate, planItemIds = null }
 ) {
+  const hasPlanItems = Array.isArray(planItemIds) && planItemIds.length > 0;
+  const params = [parentId, studentId, taskId, entryDate];
+  let planFilter = '';
+  if (hasPlanItems) {
+    planFilter = ` AND plan_item_id IN (${buildInClause(planItemIds)})`;
+    params.push(...planItemIds);
+  }
   const [[{ total } = { total: 0 }]] = await client.query(
     `
       SELECT COUNT(*) AS total
@@ -798,11 +822,9 @@ async function countDailySubtasks(
          AND student_id = ?
          AND task_id = ?
          AND entry_date = ?
-         ${planItemId ? 'AND plan_item_id = ?' : ''}
+         ${planFilter}
     `,
-    planItemId
-      ? [parentId, studentId, taskId, entryDate, planItemId]
-      : [parentId, studentId, taskId, entryDate]
+    params
   );
   return Number(total) || 0;
 }
@@ -815,7 +837,7 @@ async function syncDailyPlan(client, params) {
 
   const total = await countDailySubtasks(client, {
     ...params,
-    planItemId: plan.plan_item_id
+    planItemIds: plan.plan_item_ids
   });
 
   if (plan.is_locked) {
@@ -848,7 +870,7 @@ async function lockDailyPlan(client, params) {
 
   const total = await countDailySubtasks(client, {
     ...params,
-    planItemId: plan.plan_item_id
+    planItemIds: plan.plan_item_ids
   });
 
   if (total === 0) {
@@ -877,6 +899,15 @@ async function lockDailyPlan(client, params) {
 
 async function areAllSubtasksApproved(connection, { parentId, studentId, taskId, entryDate }) {
   const plan = await fetchDailyPlan(connection, { parentId, studentId, taskId, entryDate });
+  const planItemIds = Array.isArray(plan?.plan_item_ids) ? plan.plan_item_ids.filter(Boolean) : [];
+  const usePlanItems = planItemIds.length > 0;
+
+  const params = [parentId, studentId, taskId, entryDate];
+  let planFilter = '';
+  if (usePlanItems) {
+    planFilter = ` AND plan_item_id IN (${buildInClause(planItemIds)})`;
+    params.push(...planItemIds);
+  }
 
   const [[stats]] = await connection.query(
     `SELECT
@@ -887,10 +918,8 @@ async function areAllSubtasksApproved(connection, { parentId, studentId, taskId,
         AND student_id = ?
         AND task_id = ?
         AND entry_date = ?
-        ${plan?.plan_item_id ? 'AND plan_item_id = ?' : ''}`,
-    plan?.plan_item_id
-      ? [parentId, studentId, taskId, entryDate, plan.plan_item_id]
-      : [parentId, studentId, taskId, entryDate]
+        ${planFilter}`,
+    params
   );
 
   const total = Number(stats?.total ?? 0);

@@ -15,13 +15,11 @@ const STATUS_LABELS = {
 const STATUS_HINTS = {
   draft: '请添加今日要完成的子任务，保存或提交给家长审批。',
   submitted: '计划已提交，等待家长审核。若需要调整，请耐心等待结果。',
-  approved: '家长已通过今日计划，记得在完成后到“每日打卡”页提交成果。',
+  approved: '家长已通过今日计划，可按安排到“每日打卡”页执行任务。',
   rejected: '家长驳回了计划，请根据反馈调整后再次提交。'
 };
 
 const STATUS_BANNER = {
-  submitted: '计划已发送给家长，请耐心等待审批结果。',
-  approved: '家长通过了今日计划，可以前往“每日打卡”开始执行。',
   rejected: '家长驳回了该计划，请根据反馈调整后重新提交。'
 };
 
@@ -360,7 +358,10 @@ export function createPlanController(globalState, elements, showGlobalMessage) {
     try {
       const { plan } = await saveStudentPlan(payload);
       applyPlan(plan);
-      setPlanMessage('已提交学习计划，等待家长审核。', 'success');
+      setPlanMessage('', '');
+      if (typeof showGlobalMessage === 'function') {
+        showGlobalMessage('已提交学习计划，等待家长审批。', 'success');
+      }
     } catch (error) {
       const detail = error?.message;
       if (detail === 'Resource not found') {
